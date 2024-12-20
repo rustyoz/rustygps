@@ -1,0 +1,37 @@
+rustygps
+
+rustygps is a autosteer gps guidance system for agricultural vehicles.
+
+
+It will have the following features:
+
+- GPS tracking
+- Autosteer
+- Autopilot
+- Autonomous navigation
+- Autonomous planting
+- Autonomous harvesting
+- Autonomous spraying
+- Autonomous fertilizing
+- Autonomous irrigation
+- writen in golang
+- uses the following libraries:
+    - gpsd
+    - opencv
+    - numpy
+    - scipy
+    - matplotlib
+
+- the interface will be a web interface that will be used to control the vehicle and view the status of the vehicle.
+- the vehicle will be displayed on a map using Three.js
+- the vehicle will be displayed with a 3d model
+- the vehicle will be displayed with a 3d model of the implements
+
+multiple processess will be used. 
+- one process will process gps data and update the map and the vehicle position
+- one process will plan the path
+- one process will control the vehicle
+- one process will handle the implements
+- one process will log data to a database
+- one process will serve the web interface  
+

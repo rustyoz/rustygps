@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tractor Map</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #coordinates {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 100;
+            min-width: 160px;
+        }
+    </style>
+</head>
+<body>
+    <div id="coordinates">
+        Lat: 0.000°<br>
+        Lon: 0.000°<br>
+        Heading: 0.0°<br>
+        Speed: 0.0 km/h
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Initialize Three.js scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create ground plane (representing the map)
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x90EE90,
+            side: THREE.DoubleSide 
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = Math.PI / 2;
+        scene.add(ground);
+
+        // Create simple tractor representation (for now just a box)
+        const tractorGeometry = new THREE.BoxGeometry(2, 1.5, 3);
+        const tractorMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tractor = new THREE.Mesh(tractorGeometry, tractorMaterial);
+        tractor.position.y = 1;
+        scene.add(tractor);
+
+        // Position camera for better view
+        camera.position.set(0, 10, 20);
+        camera.lookAt(tractor.position);
+
+        // Add some basic lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(0, 10, 0);
+        scene.add(directionalLight);
+
+        // Update mock data to include heading and speed
+        let tractorPosition = {
+            lat: 51.5074,
+            lon: -0.1278,
+            heading: 45.0,
+            speed: 8.5,
+            time: new Date()
+        };
+
+        
+
+        // Update coordinates display
+        function updateCoordinates() {
+            const coordsElement = document.getElementById('coordinates');
+            coordsElement.innerHTML = `
+                Lat: ${tractorPosition.lat.toFixed(4)}°<br>
+                Lon: ${tractorPosition.lon.toFixed(4)}°<br>
+                Heading: ${tractorPosition.heading.toFixed(1)}°<br>
+                Speed: ${tractorPosition.speed.toFixed(1)} km/h
+                Time: ${tractorPosition.time.toLocaleString()}
+            `;
+        }
+
+        // Function to fetch position data
+        async function fetchPosition() {
+            try {
+                const response = await fetch('/gps/position');
+                const data = await response.json();
+                tractorPosition = {
+                    lat: data.Lat,
+                    lon: data.Lon,
+                    heading: data.Heading,
+                    speed: data.Speed,
+                    time: new Date(data.Time)
+                };
+                
+                updateCoordinates();
+                console.log(tractorPosition);
+
+
+
+                // Update tractor position and rotation on the map
+                // (You might need to adjust these calculations based on your coordinate system)
+                //tractor.rotation.y = data.heading * Math.PI / 180; // Convert degrees to radians
+                
+            } catch (error) {
+                console.error('Error fetching position:', error);
+            }
+        }
+
+        // Update animation loop to fetch position regularly
+        function animate() {
+            requestAnimationFrame(animate);
+            updateCoordinates();
+            renderer.render(scene, camera);
+        }
+
+        // Start the animation loop
+        animate();
+
+        // Set up periodic position updates (every 1 second)
+        setInterval(fetchPosition, 1000);
+
+        // Handle window resizing
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
