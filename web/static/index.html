@@ -20,6 +20,8 @@
             min-width: 160px;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three/examples/js/loaders/TextureLoader.js"></script>
 </head>
 <body>
     <div id="coordinates">
@@ -28,7 +30,6 @@
         Heading: 0.0°<br>
         Speed: 0.0 km/h
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         // Initialize Three.js scene, camera, and renderer
         const scene = new THREE.Scene();
@@ -37,15 +38,57 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Create ground plane (representing the map)
-        const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const groundMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x90EE90,
-            side: THREE.DoubleSide 
-        });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = Math.PI / 2;
-        scene.add(ground);
+        // Replace the ground plane creation with this tile-based system
+        // 36°48'04.7"S 142°18'51.3"E
+        const TILE_SIZE = 100;
+        const initialLat = -36.8013;
+        const initialLon = 142.3142;
+        const zoom = 13; // Adjust zoom level as needed
+
+        function lon2tile(lon, zoom) {
+            return Math.floor((lon + 180) / 360 * Math.pow(2, zoom));
+        }
+
+        function lat2tile(lat, zoom) {
+            return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+        }
+
+        function loadMapTile(x, y, zoom) {
+            const loader = new THREE.TextureLoader();
+            // Using OpenStreetMap tiles (you can replace with Mapbox or other providers)
+            const url = `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
+            
+            return new Promise((resolve) => {
+                loader.load(url, (texture) => {
+                    const geometry = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        map: texture,
+                        side: THREE.DoubleSide 
+                    });
+                    const tile = new THREE.Mesh(geometry, material);
+                    tile.rotation.x = Math.PI / 2;
+                    resolve(tile);
+                });
+            });
+        }
+
+        // Load initial tiles
+        async function loadInitialTiles() {
+            const centerTileX = lon2tile(initialLon, zoom);
+            const centerTileY = lat2tile(initialLat, zoom);
+            
+            // Load 3x3 grid of tiles
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    const tile = await loadMapTile(centerTileX + i, centerTileY + j, zoom);
+                    tile.position.set(i * TILE_SIZE, 0, j * TILE_SIZE);
+                    scene.add(tile);
+                }
+            }
+        }
+
+        // Remove the old ground plane code and call loadInitialTiles
+        loadInitialTiles();
 
         // Create simple tractor representation (for now just a box)
         const tractorGeometry = new THREE.BoxGeometry(2, 1.5, 3);
@@ -55,7 +98,7 @@
         scene.add(tractor);
 
         // Position camera for better view
-        camera.position.set(0, 10, 20);
+        camera.position.set(0, 20, 20);
         camera.lookAt(tractor.position);
 
         // Add some basic lighting
