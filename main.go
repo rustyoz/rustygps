@@ -10,6 +10,7 @@ import (
 
 func main() {
 	// Define flags with default values
+	simulationMode := flag.Bool("simulate", true, "Enable simulation mode (no serial connections)")
 	gpsPort := flag.String("gps-port", "/dev/ttyUSB0", "GPS serial port")
 	gpsBaud := flag.String("gps-baud", "9600", "GPS baud rate")
 	implementPort := flag.String("impl-port", "/dev/ttyUSB1", "Implement serial port")
@@ -18,12 +19,21 @@ func main() {
 	// Parse flags
 	flag.Parse()
 
-	// start the gps process
-	go gps.Run(*gpsPort, *gpsBaud)
-
-	// start the implement process
-	go implement.Run(*implementPort, *implementBaud)
+	if !*simulationMode {
+		// start the gps process with real serial connection
+		go gps.Run(*gpsPort, *gpsBaud)
+		// start the implement process with real serial connection
+		go implement.Run(*implementPort, *implementBaud)
+	} else {
+		// start the gps process in simulation mode
+		go gps.RunSimulation()
+		// start the implement process in simulation mode
+		go implement.RunSimulation()
+	}
 
 	// start the web process
-	web.Run(":8080")
+	port := ":8080"
+
+	web.Run(port)
+
 }
