@@ -1,9 +1,10 @@
 // Create simple tractor representation (for now just a box)
-function tractorModel(wheelbase) {
+function tractorModel(wheelbase, hitchoffset) {
     // Create a group to hold all tractor parts
     const tractorGroup = new THREE.Group();
     tractorGroup.name = 'tractor';
 
+    tractorGroup.hitchoffset = hitchoffset;
     // default wheelbase is 3m
     // scale the tractor by the wheelbase
     tractorGroup.scale.set(wheelbase / 3, wheelbase / 3, wheelbase / 3);    
@@ -86,16 +87,52 @@ function tractorModel(wheelbase) {
     backAxle.rotation.z = Math.PI / 2;
     tractorGroup.add(backAxle);
 
-    // rotate the tractor by 90 degrees around the y axis anticlockwise
-    tractorGroup.rotation.y = Math.PI / 2;
+    // Add hitch
+    const hitchGeometry = new THREE.BoxGeometry(0.2, 0.2, hitchoffset);
+    const hitchMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 }); // Gray
+    const hitch = new THREE.Mesh(hitchGeometry, hitchMaterial);
+    hitch.name = 'hitch';
+    // Position the hitch behind the tractor, centered horizontally and at a reasonable height
+    hitch.position.set(0, 1, -hitchoffset/2);
+    tractorGroup.add(hitch);
+
+    
 
     // Add method to update steering angle
     tractorGroup.setSteeringAngle = function(angleInDegrees) {
-        // negate the angle, so that left is negative and right is positive
-        const angleInRadians = -(angleInDegrees * Math.PI) / 180;
+        const angleInRadians = (angleInDegrees * Math.PI) / 180;
         frontLeftWheelGroup.rotation.y = angleInRadians;
         frontRightWheelGroup.rotation.y = angleInRadians;
     };
 
+
+
     return tractorGroup;
+}
+
+// Add method to add implement to tractor
+function addImplement(tractor, implement) {
+    // get the hitch offset from the tractor
+    const hitchoffset = tractor.hitchoffset;
+
+    // create a group to hold the implement
+    const implementGroup = new THREE.Group();
+    implementGroup.name = 'implementgroup';
+    implementGroup.position.set(0, 0, -hitchoffset);
+    implementGroup.add(implement);
+    tractor.add(implementGroup);
+    
+    // add a method to set the implement angle
+    tractor.setImplementAngle = function(angle) {
+        implementGroup.rotation.y = angle;
+    };
+}
+
+function getHitchOffset(tractor) {
+    return tractor.hitchoffset;
+}
+
+
+function getImplementAngle(tractor) {
+    return tractor.implementgroup.rotation.y;
 }

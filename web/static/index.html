@@ -21,7 +21,7 @@
         }
         #controlPanel {
             position: absolute;
-            top: 150px;
+            top: 200px;
             left: 10px;
             background: rgba(0, 0, 0, 0.7);
             color: white;
@@ -61,7 +61,132 @@
         .center-button:hover {
             background: #555;
         }
+        #cameraPanel {
+            position: absolute;
+            top: 150px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 100;
+            min-width: 150px;
+        }
+        .camera-button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px 0;
+            font-family: monospace;
+            display: block;
+            width: 100%;
+        }
+        .camera-button.active {
+            background: #666;
+        }
+        .camera-button:hover {
+            background: #555;
+        }
+        #fpsCounter {
+            position: absolute;
+            top: 10px;
+            left: 250px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 100;
+        }
+        #updateCounter {
+            position: absolute;
+            top: 10px;
+            left: 350px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 100;
+        }
+        /* Add configuration panel styles */
+        .config-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 100;
+            min-width: 200px;
+        }
+        .config-form {
+            margin-bottom: 10px;
+        }
+        .config-group {
+            margin-bottom: 10px;
+        }
+        .config-item {
+            margin-bottom: 5px;
+        }
+        .config-item label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .config-item input[type="number"] {
+            width: 100%;
+        }
+        .config-button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-family: monospace;
+            display: block;
+            width: 100%;
+        }
+        .config-button:hover {
+            background: #555;
+        }
     </style>
+    <!-- Add configuration panel -->
+    <div id="configPanel" class="config-panel">
+        <h2>Tractor & Implement Configuration</h2>
+        <div class="config-form">
+            <div class="config-group">
+                <h3>Tractor Settings</h3>
+                <div class="config-item">
+                    <label for="wheelbase">Wheelbase (meters):</label>
+                    <input type="number" id="wheelbase" value="2.5" step="0.1" min="0.1">
+                </div>
+                <div class="config-item">
+                    <label for="hitchOffset">Hitch Offset (meters):</label>
+                    <input type="number" id="hitchOffset" value="1.0" step="0.1" min="0.1">
+                </div>
+            </div>
+            <div class="config-group">
+                <h3>Implement Settings</h3>
+                <div class="config-item">
+                    <label for="implementLength">Length (meters):</label>
+                    <input type="number" id="implementLength" value="3.0" step="0.1" min="0.1">
+                </div>
+                <div class="config-item">
+                    <label for="implementWidth">Width (meters):</label>
+                    <input type="number" id="implementWidth" value="3.0" step="0.1" min="0.1">
+                </div>
+            </div>
+            <button id="startSimulation" class="config-button" disabled>Start Simulation</button>
+        </div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/three/examples/js/loaders/TextureLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -74,6 +199,12 @@
         Lon: 0.000°<br>
         Heading: 0.0°<br>
         Speed: 0.0 km/h
+    </div>
+    <div id="fpsCounter">
+        FPS: 0
+    </div>
+    <div id="updateCounter">
+        Updates/s: 0
     </div>
     <div id="controlPanel">
         <h3 style="margin-top: 0;">Tractor Controls</h3>
@@ -93,16 +224,217 @@
         </div>
         <button id="centerSteering" class="center-button">Center Steering</button>
     </div>
+    <div id="cameraPanel">
+        <h3 style="margin-top: 0;">Camera View</h3>
+        <button id="thirdPersonView" class="camera-button active">Third Person</button>
+        <button id="followView" class="camera-button">Follow</button>
+        <button id="firstPersonView" class="camera-button">First Person</button>
+    </div>
     <button id="resetCamera" style="position: absolute; bottom: 20px; right: 20px; padding: 10px; z-index: 100;">
         Reset Camera
     </button>
     <script>
         // Initialize Three.js scene, camera, and renderer
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+
+        // Initialize OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Smooth camera movements
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 5;
+        controls.maxDistance = 5000;
+        controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
+
+        // Add reset camera function
+        function resetCamera() {
+            controls.reset();
+            camera.position.set(0, 200, 200);
+            if (tractor) {
+                controls.target.copy(tractor.position);
+            }
+        }
+
+        // Add event listener for reset button
+        document.getElementById('resetCamera').addEventListener('click', resetCamera);
+
+        // Hide all UI elements initially except config panel
+        document.getElementById('coordinates').style.display = 'none';
+        document.getElementById('fpsCounter').style.display = 'none';
+        document.getElementById('updateCounter').style.display = 'none';
+        document.getElementById('controlPanel').style.display = 'none';
+        document.getElementById('cameraPanel').style.display = 'none';
+        document.getElementById('resetCamera').style.display = 'none';
+
+        // Configuration handling
+        let ws;
+        let configSent = false;
+        let tractor = null;
+        let implement = null;
+        let animationStarted = false;
+        
+        // Initialize WebSocket connection
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://${window.location.host}/ws`);
+            
+            ws.onopen = function() {
+                console.log('WebSocket connected');
+                document.getElementById('startSimulation').disabled = false;
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'position' && tractor) {
+                    // Count position updates
+                    positionUpdates++;
+                    
+                    // Calculate updates per second every second
+                    const time = performance.now();
+                    if (time >= updatePrevTime + 1000) {
+                        const updatesPerSec = Math.round((positionUpdates * 1000) / (time - updatePrevTime));
+                        updateDisplay.textContent = `Updates/s: ${updatesPerSec}`;
+                        positionUpdates = 0;
+                        updatePrevTime = time;
+                    }
+
+                    tractorPosition = {
+                        lat: data.tractorPos.Lat,
+                        lon: data.tractorPos.Lon,
+                        heading: data.tractorPos.Heading,
+                        speed: data.tractorPos.Speed,  
+                        time: new Date(data.tractorPos.Time),
+                        worldX: data.tractorWorldPos.X,
+                        worldY: data.tractorWorldPos.Y,
+                        worldHeading: data.tractorWorldPos.Heading
+                    };
+
+                    implementPosition = {
+                        lat: data.implementPos.Lat,
+                        lon: data.implementPos.Lon,
+                        heading: data.implementPos.Heading,
+                        speed: data.implementPos.Speed,  
+                        time: new Date(data.implementPos.Time),
+                        worldX: data.implementWorldPos.X,
+                        worldY: data.implementWorldPos.Y,
+                        worldHeading: data.implementWorldPos.Heading
+                    };
+
+                    articulationAngle = implementPosition.worldHeading - tractorPosition.worldHeading;
+                    
+                    // Update tractor position and rotation
+                    tractor.position.x = tractorPosition.worldX;
+                    tractor.position.z = -tractorPosition.worldY;
+                    tractor.rotation.y = tractorPosition.worldHeading + Math.PI/2;
+
+                    // Update implement angle
+                    tractor.setImplementAngle(articulationAngle);
+
+                    // Update path points
+                    tractorPathPoints.push(new THREE.Vector3(tractorPosition.worldX, 0.1, -tractorPosition.worldY));
+                    tractorPathGeometry.setFromPoints(tractorPathPoints);
+
+                    // Update implement path points
+                    implementPathPoints.push(new THREE.Vector3(implementPosition.worldX, 0.1, -implementPosition.worldY));
+                    implementPathGeometry.setFromPoints(implementPathPoints);
+                }
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket disconnected, attempting to reconnect...');
+                document.getElementById('startSimulation').disabled = true;
+                setTimeout(connectWebSocket, 1000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                document.getElementById('startSimulation').disabled = true;
+            };
+        }
+
+        // Connect to WebSocket when page loads
+        connectWebSocket();
+
+        // Add function to send tractor controls
+        function sendTractorControls() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const controls = {
+                    type: 'control',
+                    speed: parseFloat(speedControl.value),
+                    steeringAngle: parseFloat(steeringControl.value)
+                };
+                ws.send(JSON.stringify(controls));
+            }
+        }
+
+        function createModels(config) {
+            // Create tractor with configured dimensions
+            tractor = tractorModel(config.tractor.wheelbase, config.tractor.hitchOffset);
+            
+            // Create implement with configured dimensions
+            implement = implementModel(config.implement.width, config.implement.length);
+            
+            // Add implement to tractor
+            addImplement(tractor, implement);
+            
+            // Add to scene
+            scene.add(tractor);
+            
+            // Position camera for better view
+            camera.position.set(0, 200, 200);
+            camera.lookAt(tractor.position.x, tractor.position.y+10, tractor.position.z);
+            
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(0, 10, 0);
+            scene.add(directionalLight);
+        }
+        
+        function sendConfiguration() {
+            const config = {
+                type: 'config',
+                tractor: {
+                    wheelbase: parseFloat(document.getElementById('wheelbase').value),
+                    hitchOffset: parseFloat(document.getElementById('hitchOffset').value)
+                },
+                implement: {
+                    length: parseFloat(document.getElementById('implementLength').value),
+                    width: parseFloat(document.getElementById('implementWidth').value)
+                }
+            };
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(config));
+                configSent = true;
+                
+                // Create 3D models with configured dimensions
+                createModels(config);
+                
+                // Show all UI elements
+                document.getElementById('coordinates').style.display = 'block';
+                document.getElementById('fpsCounter').style.display = 'block';
+                document.getElementById('updateCounter').style.display = 'block';
+                document.getElementById('controlPanel').style.display = 'block';
+                document.getElementById('cameraPanel').style.display = 'block';
+                document.getElementById('resetCamera').style.display = 'block';
+                
+                // Hide config panel
+                document.getElementById('configPanel').style.display = 'none';
+                
+                // Start the animation loop if not already started
+                if (!animationStarted) {
+                    animationStarted = true;
+                    animate();
+                }
+            }
+        }
+
+        document.getElementById('startSimulation').addEventListener('click', sendConfiguration);
 
         // Replace the ground plane creation with this tile-based system
         // 36°48'04.7"S 142°18'51.3"E
@@ -116,6 +448,9 @@
         let tractorPosition = {
             lat: -36.8013,
             lon: 142.3142,
+            worldX: 0,
+            worldY: 0,
+            worldHeading: 0,
             heading: 45.0,
             speed: 8.5,
             time: new Date()
@@ -142,7 +477,7 @@
                         side: THREE.DoubleSide 
                     });
                     const tile = new THREE.Mesh(geometry, material);
-                    tile.rotation.x = Math.PI / 2;
+                    tile.rotation.x = -Math.PI / 2;
                     resolve(tile);
                 });
             });
@@ -166,172 +501,154 @@
         // Remove the old ground plane code and call loadInitialTiles
         loadInitialTiles();
 
+        // add an arrow to the scene pointing north
+        const arrowY = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 100, 0x00ff00);
+        scene.add(arrowY);
+
+        const arrowX = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 100, 0xff0000);
+        scene.add(arrowX);
+
+        const arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), 100, 0x0000ff);
+        scene.add(arrowZ);
+
         // Add after scene initialization and before tractor model creation
         // Create line for tractor path
-        const pathPoints = [];
-        const pathGeometry = new THREE.BufferGeometry();
-        const pathMaterial = new THREE.LineBasicMaterial({ 
-            color: 0x00ff00,
+        const tractorPathPoints = [];
+        const tractorPathGeometry = new THREE.BufferGeometry();
+        const tractorPathMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ff00, // green
             linewidth: 2,  // Note: linewidth only works in WebGLRenderer2
             side: THREE.DoubleSide
         });
-        const tractorPath = new THREE.Line(pathGeometry, pathMaterial);
+        const tractorPath = new THREE.Line(tractorPathGeometry, tractorPathMaterial);
         tractorPath.renderOrder = 1; // Ensure path renders above ground
         tractorPath.material.depthTest = false; // Prevent z-fighting with ground
+        tractorPath.frustumCulled = false;
         scene.add(tractorPath);
 
-        // Replace the simple tractor box with the detailed model
-        const tractor = tractorModel(3); // 3m wheelbase
-        tractor.position.y = 0; // The model already has correct height positioning
-        scene.add(tractor);
+        // implement path
+        const implementPathPoints = [];
+        const implementPathGeometry = new THREE.BufferGeometry();
+        const implementPathMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xff0000, // red
+            linewidth: 2,  // Note: linewidth only works in WebGLRenderer2
+            side: THREE.DoubleSide
+        });
 
-        // Add implement model
-        const implement = implementModel(3, 3); // 3m wide, 2m length
-        scene.add(implement);
 
-        // Position camera for better view
-        camera.position.set(0, 200, 200); // Increased height for better view
-        camera.far = 10000; // Increase far plane to see more distance
-        camera.near = 0.01;
-        camera.lookAt(tractor.position.x, tractor.position.y+10, tractor.position.z);
+        const implementPath = new THREE.Line(implementPathGeometry, implementPathMaterial);
+        implementPath.renderOrder = 1; // Ensure path renders above ground
+        implementPath.material.depthTest = false; // Prevent z-fighting with ground
+        implementPath.frustumCulled = false;
+        scene.add(implementPath);
 
-        // Add some basic lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight.position.set(0, 10, 0);
-        scene.add(directionalLight);
-
-        // Add after camera initialization
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; // Smooth camera movements
-        controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = false;
-        controls.minDistance = 5;
-        controls.maxDistance = 5000;
-        controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
-
-        // Add reset camera function
-        function resetCamera() {
-            controls.reset();
-            camera.position.set(0, 200, 200);
-            controls.target.copy(tractor.position);
-        }
-
-        // Add event listener for reset button
-        document.getElementById('resetCamera').addEventListener('click', resetCamera);
-
+        // Add after scene initialization
+        let currentCameraView = 'thirdPerson'; // Global variable for camera view
         
-
-        // Add this conversion function before fetchPosition
-        function gpsToSceneCoordinates(lat, lon) {
-            // Calculate difference from initial position
-            const latDiff = lat - initialLat;
-            const lonDiff = lon - initialLon;
+        // Camera position constants
+        const THIRD_PERSON_OFFSET = new THREE.Vector3(0, 10, -20);
+        const FIRST_PERSON_OFFSET = new THREE.Vector3(0, 2, 0);
+        
+        // Update camera position based on view mode
+        function updateCameraPosition() {
+            if (!tractor) return; // Don't update camera if tractor doesn't exist yet
             
-            // Convert to meters (more accurate conversion)
-            const metersPerLat = 111320; // meters per degree of latitude
-            const metersPerLon = 111320 * Math.cos(initialLat * Math.PI / 180); // meters per degree of longitude
-            
-            // Convert directly to scene units (now 1:1 with meters)
-            const x = lonDiff * metersPerLon;
-            const z = -latDiff * metersPerLat; // Negative because latitude increases northward
-            
-            return { x, z };
+            if (currentCameraView === 'thirdPerson') {
+                // Position camera behind tractor
+                const offset = THIRD_PERSON_OFFSET.clone();
+                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), tractor.rotation.y);
+                camera.position.copy(tractor.position).add(offset);
+                controls.target.copy(tractor.position);
+            } else if (currentCameraView === 'follow') {
+                // Keep current camera position but look at tractor
+                controls.target.copy(tractor.position);
+            } else if (currentCameraView === 'firstPerson') {
+                // Position camera at tractor's position
+                const offset = FIRST_PERSON_OFFSET.clone();
+                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), tractor.rotation.y-Math.PI/2);
+                camera.position.copy(tractor.position).add(offset);
+                
+                // Look in the direction the tractor is facing
+                const lookAtOffset = new THREE.Vector3(10, 2, 0);
+                lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), tractor.rotation.y-Math.PI/2);
+                controls.target.copy(tractor.position).add(lookAtOffset);
+            }
         }
 
-        // Update coordinates display
+        // Add camera view button handlers
+        document.getElementById('thirdPersonView').addEventListener('click', () => {
+            currentCameraView = 'thirdPerson';
+            updateButtonStates();
+        });
+
+        document.getElementById('followView').addEventListener('click', () => {
+            currentCameraView = 'follow';
+            updateButtonStates();
+        });
+
+        document.getElementById('firstPersonView').addEventListener('click', () => {
+            currentCameraView = 'firstPerson';
+            updateButtonStates();
+        });
+
+        function updateButtonStates() {
+            document.querySelectorAll('.camera-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.getElementById(`${currentCameraView}View`).classList.add('active');
+        }
+
+        // Add these variables near the start of the script section, after scene initialization
+        let frames = 0;
+        let prevTime = performance.now();
+        let fpsDisplay = document.getElementById('fpsCounter');
+
+        // Add these new variables for the update counter
+        let positionUpdates = 0;
+        let updatePrevTime = performance.now();
+        let updateDisplay = document.getElementById('updateCounter');
+
+        // Function to update coordinates display
         function updateCoordinates() {
+            if (!tractor) return;
+            
             const coordsElement = document.getElementById('coordinates');
             coordsElement.innerHTML = `
                 Lat: ${tractorPosition.lat.toFixed(4)}°<br>
                 Lon: ${tractorPosition.lon.toFixed(4)}°<br>
                 Heading: ${tractorPosition.heading.toFixed(1)}°<br>
-                Speed: ${tractorPosition.speed.toFixed(1)} km/h
-                Time: ${tractorPosition.time.toLocaleString()}
+                Speed: ${tractorPosition.speed.toFixed(1)} km/h<br>
+                Time: ${tractorPosition.time.toLocaleString()}<br>
+                <hr style="border-color: #666;">
+                World X: ${tractorPosition.worldX.toFixed(1)}m<br>
+                World Y: ${tractorPosition.worldY.toFixed(1)}m<br>
+                World Heading: ${tractorPosition.worldHeading.toFixed(1)}° (N=0°)
             `;
         }
 
-        // Replace the fetchPosition function and interval with WebSocket handling
-        let ws;
-        function connectWebSocket() {
-            ws = new WebSocket(`ws://${window.location.host}/ws`);
-            
-            ws.onopen = function() {
-                console.log('WebSocket connected');
-            };
-            
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'position') {
-                    tractorPosition = {
-                        lat: data.Lat,
-                        lon: data.Lon,
-                        heading: data.Heading,
-                        speed: data.Speed,
-                        time: new Date(data.Time)
-                    };
-                    
-                    // Convert GPS coordinates to scene position for tractor
-                    const tractorScenePos = gpsToSceneCoordinates(tractorPosition.lat, tractorPosition.lon);
-                    
-                    // Update tractor position and rotation
-                    tractor.position.x = tractorScenePos.x;
-                    tractor.position.z = tractorScenePos.z;
-                    tractor.rotation.y = tractorPosition.heading * Math.PI / 180 + Math.PI / 2;
-
-                    // Convert GPS coordinates to scene position for implement
-                    const implementScenePos = gpsToSceneCoordinates(data.ImplementLat, data.ImplementLon);
-                    
-                    // Update implement position and rotation
-                    implement.position.x = tractorScenePos.x;
-                    implement.position.z = tractorScenePos.z;
-                    implement.rotation.y = data.ImplementHeading * Math.PI / 180 + Math.PI / 2;
-
-                    // Update path points (keeping existing path code)
-                    pathPoints.push(new THREE.Vector3(tractorScenePos.x, 0.1, tractorScenePos.z));
-                    pathGeometry.setFromPoints(pathPoints);
-                    
-                    // Update controls target to follow tractor
-                    controls.target.set(tractorScenePos.x, 2, tractorScenePos.z);
-                }
-            };
-            
-            ws.onclose = function() {
-                console.log('WebSocket disconnected, attempting to reconnect...');
-                setTimeout(connectWebSocket, 1000);
-            };
-
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-            };
-        }
-
-        // Connect to WebSocket when page loads
-        connectWebSocket();
-
-        // Update the sendTractorControls function to use WebSocket
-        async function sendTractorControls() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                const controls = {
-                    type: 'control',
-                    speed: parseFloat(speedControl.value),
-                    steeringAngle: -parseFloat(steeringControl.value)
-                };
-                ws.send(JSON.stringify(controls));
-            }
-        }
-
-        // Update animation loop to include controls update
+        // Modify the animate function to check for tractor existence
         function animate() {
             requestAnimationFrame(animate);
-            controls.update(); // Required for damping to work
-            updateCoordinates();
+            
+            // FPS calculation
+            frames++;
+            const time = performance.now();
+            
+            if (time >= prevTime + 1000) {
+                const fps = Math.round((frames * 1000) / (time - prevTime));
+                fpsDisplay.textContent = `FPS: ${fps}`;
+                frames = 0;
+                prevTime = time;
+            }
+            
+            if (tractor) { // Only update if tractor exists
+                updateCameraPosition();
+                controls.update();
+                updateCoordinates();
+            }
+            
             renderer.render(scene, camera);
         }
-
-        // Start the animation loop
-        animate();
 
         // Add control panel handling
         const speedControl = document.getElementById('speedControl');
@@ -342,6 +659,7 @@
 
         // Add center steering button handler
         centerSteeringButton.addEventListener('click', () => {
+            if (!tractor) return; // Don't update if tractor doesn't exist
             steeringControl.value = 0;
             steeringValue.textContent = "Center";
             tractor.setSteeringAngle(0);
@@ -350,20 +668,21 @@
 
         // Update display values when sliders change
         speedControl.addEventListener('input', () => {
+            if (!tractor) return; // Don't update if tractor doesn't exist
             speedValue.textContent = parseFloat(speedControl.value).toFixed(1);
             sendTractorControls();
         });
 
         steeringControl.addEventListener('input', () => {
-            const value = parseFloat(steeringControl.value);
+            if (!tractor) return; // Don't update if tractor doesn't exist
+            const value = -parseFloat(steeringControl.value);
             if (Math.abs(value) < 0.1) {
                 steeringValue.textContent = "Center";
             } else if (value > 0) {
-                steeringValue.textContent = `Right ${Math.abs(value).toFixed(1)}°`;
-            } else {
                 steeringValue.textContent = `Left ${Math.abs(value).toFixed(1)}°`;
+            } else {
+                steeringValue.textContent = `Right ${Math.abs(value).toFixed(1)}°`;
             }
-            // Update the tractor's wheel angles
             tractor.setSteeringAngle(value);
             sendTractorControls();
         });

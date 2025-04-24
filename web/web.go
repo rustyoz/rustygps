@@ -3,15 +3,15 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/rustyoz/rustygps/gps"
 	"github.com/rustyoz/rustygps/implement"
+	"github.com/rustyoz/rustygps/tractor"
+	"github.com/rustyoz/rustygps/types"
 )
 
 var upgrader = websocket.Upgrader{
@@ -34,7 +34,19 @@ type TractorControls struct {
 	SteeringAngle float64 `json:"steeringAngle"`
 }
 
-var currentPosition gps.Position
+var currentTractorPosition types.Position
+var currentImplementPosition types.Position
+
+var theTractor *tractor.Tractor
+var theImplement *implement.Implement
+
+func SetTractor(tractor *tractor.Tractor) {
+	theTractor = tractor
+}
+
+func SetImplement(implement *implement.Implement) {
+	theImplement = implement
+}
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -62,57 +74,70 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		// Handle control messages from client
-		var control struct {
-			Type          string  `json:"type"`
+		// Handle messages from client
+		var msg struct {
+			Type    string `json:"type"`
+			Tractor struct {
+				Wheelbase   float64 `json:"wheelbase"`
+				HitchOffset float64 `json:"hitchOffset"`
+			} `json:"tractor"`
+			Implement struct {
+				Length float64 `json:"length"`
+				Width  float64 `json:"width"`
+			} `json:"implement"`
 			Speed         float64 `json:"speed"`
 			SteeringAngle float64 `json:"steeringAngle"`
 		}
 
-		if err := json.Unmarshal(message, &control); err != nil {
+		if err := json.Unmarshal(message, &msg); err != nil {
 			continue
 		}
 
-		if control.Type == "control" {
+		switch msg.Type {
+		case "config":
+			// Update tractor configuration
+			theTractor.UpdateConfiguration(msg.Tractor.Wheelbase, msg.Tractor.HitchOffset)
+			// Update implement configuration
+			theImplement.UpdateConfiguration(msg.Implement.Length, msg.Implement.Width)
+
+		case "control":
 			// Convert speed from km/h to m/s
-			speedMS := control.Speed / 3.6
-			// Convert steering angle to radians
-			steeringRad := control.SteeringAngle * (3.14159 / 180.0)
+			speedMS := msg.Speed / 3.6
+			// Convert steering angle to radians with positive being anticlockwise
+			steeringRad := msg.SteeringAngle * (-3.14159 / 180.0)
 
 			// Update the tractor simulation
-			gps.UpdateTractorControls(speedMS, steeringRad)
+			theTractor.UpdateTractorControls(speedMS, steeringRad)
 		}
 	}
 }
 
 // BroadcastPosition sends position updates to all connected clients
-func BroadcastPosition(pos *gps.Position) {
-	// Get implement position
-	implPos := implement.GetPosition()
+func BroadcastPosition() {
 
+	// Get tractor position
+	tractorPos := theTractor.GetPosition()
+	tractorWorldPos := theTractor.GetWorldPosition()
+	implementPos := theImplement.GetPosition()
+	implementWorldPos := theImplement.GetWorldPosition()
 	message := struct {
-		Type             string  `json:"type"`
-		Lat              float64 `json:"Lat"`
-		Lon              float64 `json:"Lon"`
-		Heading          float64 `json:"Heading"`
-		Speed            float64 `json:"Speed"`
-		Time             string  `json:"Time"`
-		ImplementLat     float64 `json:"ImplementLat"`
-		ImplementLon     float64 `json:"ImplementLon"`
-		ImplementHeading float64 `json:"ImplementHeading"`
+		Type              string              `json:"type"`
+		TractorPos        types.Position      `json:"tractorPos"`
+		TractorWorldPos   types.WorldPosition `json:"tractorWorldPos"`
+		ImplementPos      types.Position      `json:"implementPos"`
+		ImplementWorldPos types.WorldPosition `json:"implementWorldPos"`
 	}{
-		Type:             "position",
-		Lat:              pos.Lat,
-		Lon:              pos.Lon,
-		Heading:          pos.Heading,
-		Speed:            pos.Speed,
-		Time:             pos.Time.Format(time.RFC3339),
-		ImplementLat:     implPos.Lat,
-		ImplementLon:     implPos.Lon,
-		ImplementHeading: implPos.Heading,
+		Type:              "position",
+		TractorPos:        tractorPos,
+		TractorWorldPos:   tractorWorldPos,
+		ImplementPos:      implementPos,
+		ImplementWorldPos: implementWorldPos,
 	}
 
+	//fmt.Printf("tractor heading: %f implement heading: %f articulation angle: %f\n", tractorWorldPos.Heading, implementWorldPos.Heading, implementWorldPos.Heading-tractorWorldPos.Heading)
+
 	data, err := json.Marshal(message)
+
 	if err != nil {
 		return
 	}
@@ -132,53 +157,6 @@ func BroadcastPosition(pos *gps.Position) {
 
 func Run(port string) {
 
-	// print the port
-	//	log.Println("Web server running on port", port)
-
-	// serve the tractor location at "/gps/position"
-	http.HandleFunc("/gps/position", func(w http.ResponseWriter, r *http.Request) {
-
-		// get the gps position
-		position := gps.GetPosition()
-
-		// serve the position as json
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(position)
-	})
-
-	// handle tractor steering controls
-	http.HandleFunc("/tractor/steer", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Read the request body
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Error reading request body", http.StatusBadRequest)
-			return
-		}
-
-		// Parse the controls
-		var controls TractorControls
-		if err := json.Unmarshal(body, &controls); err != nil {
-			http.Error(w, "Error parsing JSON", http.StatusBadRequest)
-			return
-		}
-
-		// Convert speed from km/h to m/s
-		speedMS := controls.Speed / 3.6
-		// Convert steering angle to radians
-		steeringRad := controls.SteeringAngle * (3.14159 / 180.0)
-
-		// Update the tractor simulation
-		gps.UpdateTractorControls(speedMS, steeringRad)
-
-		// Send success response
-		w.WriteHeader(http.StatusOK)
-	})
-
 	// serve the static files
 	http.Handle("/web/static/", http.StripPrefix("/web/static/", http.FileServer(http.Dir("web/static/"))))
 
@@ -188,9 +166,9 @@ func Run(port string) {
 	// serve position updates to websocket at 10hz
 	go func() {
 		for {
-			currentPosition = gps.GetPosition()
-			BroadcastPosition(&currentPosition)
-			time.Sleep(100 * time.Millisecond)
+			currentTractorPosition = theTractor.GetPosition()
+			BroadcastPosition()
+			time.Sleep(1000 / 50 * time.Millisecond)
 		}
 	}()
 

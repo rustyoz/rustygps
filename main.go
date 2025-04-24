@@ -2,11 +2,15 @@ package main
 
 import (
 	"flag"
+	"time"
 
-	"github.com/rustyoz/rustygps/gps"
 	"github.com/rustyoz/rustygps/implement"
+	"github.com/rustyoz/rustygps/tractor"
 	"github.com/rustyoz/rustygps/web"
 )
+
+var theTractor *tractor.Tractor
+var theImplement *implement.Implement
 
 func main() {
 	// Define flags with default values
@@ -21,14 +25,17 @@ func main() {
 
 	if !*simulationMode {
 		// start the gps process with real serial connection
-		go gps.Run(*gpsPort, *gpsBaud)
+		go tractor.Run(*gpsPort, *gpsBaud)
 		// start the implement process with real serial connection
 		go implement.Run(*implementPort, *implementBaud)
 	} else {
-		// start the gps process in simulation mode
-		go gps.RunSimulation()
-		// start the implement process in simulation mode
-		go implement.RunSimulation()
+		theTractor = tractor.NewTractor()
+		theImplement = implement.NewImplement()
+
+		web.SetTractor(theTractor)
+		web.SetImplement(theImplement)
+
+		RunSimulation()
 	}
 
 	// start the web process
@@ -36,4 +43,22 @@ func main() {
 
 	web.Run(port)
 
+}
+
+// RunSimulation starts the GPS simulation
+func RunSimulation() {
+
+	// Update at 50Hz
+	rate := 50.0 // Hz
+	millis := 1000 / rate
+
+	ticker := time.NewTicker(time.Duration(millis) * time.Millisecond)
+
+	go func() {
+		for range ticker.C {
+			// Update position with 0.1 second step size
+			theTractor.UpdatePosition(1 / rate)
+			theImplement.UpdatePosition(theTractor.GetWorldHitchPosition())
+		}
+	}()
 }
