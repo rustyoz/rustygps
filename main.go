@@ -49,7 +49,7 @@ func main() {
 func RunSimulation() {
 
 	// Update at 50Hz
-	rate := 50.0 // Hz
+	rate := 25.0 // Hz
 	millis := 1000 / rate
 
 	ticker := time.NewTicker(time.Duration(millis) * time.Millisecond)

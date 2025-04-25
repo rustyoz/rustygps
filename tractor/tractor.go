@@ -33,16 +33,19 @@ func NewCoordinateSystem(originLat, originLon float64) *types.CoordinateSystem {
 
 // Tractor represents the physical properties and state of the tractor
 type Tractor struct {
-	WheelBase     float64                 // Length between front and rear axles in meters
-	SteeringAngle float64                 // Current steering angle in radians
-	SteeringType  types.TractorType       // Type of steering mechanism
-	Speed         float64                 // Current speed in meters per second
-	Position      types.Position          // Current GPS position
-	WorldPos      types.WorldPosition     // Tractor Position in world coordinates (centre on rear axle)
-	CoordSys      *types.CoordinateSystem // Coordinate system for transformations
-	HitchOffset   float64                 // Distance from hitch point in meters
-	HitchPos      types.WorldPosition     // Position of hitch point in world coordinates
-	mu            sync.RWMutex
+	WheelBase            float64                 // Length between front and rear axles in meters
+	SteeringAngle        float64                 // Current steering angle in radians
+	SteeringType         types.TractorType       // Type of steering mechanism
+	SteeringAngleDesired float64                 // target steering angle in radians
+	SteeringAngleLimit   float64                 // maximum steering angle in radians
+	Speed                float64                 // Current speed in meters per second
+	Position             types.Position          // Current GPS position
+	WorldPos             types.WorldPosition     // Tractor Position in world coordinates (centre on rear axle)
+	CoordSys             *types.CoordinateSystem // Coordinatge system for transformations
+	HitchOffset          float64                 // Distance from hitch point in meters
+	HitchPos             types.WorldPosition     // Position of hitch point in world coordinates
+	Throttle             float64                 // Throttle position (0-1)
+	mu                   sync.RWMutex
 }
 
 // NewTractor creates a new tractor with default values
@@ -51,10 +54,12 @@ func NewTractor() *Tractor {
 	coordSys := NewCoordinateSystem(-36.8013, 142.3142)
 
 	return &Tractor{
-		WheelBase:     2.5,
-		SteeringAngle: 0.0,
-		SteeringType:  types.Ackerman,
-		Speed:         0.0,
+		WheelBase:            2.5,
+		SteeringAngle:        0.0,
+		SteeringType:         types.Ackerman,
+		SteeringAngleDesired: 0.0,
+		SteeringAngleLimit:   math.Pi / 4, // 45 degrees
+		Speed:                0.0,
 		Position: types.Position{
 			Lat:     coordSys.OriginLat,
 			Lon:     coordSys.OriginLon,
@@ -75,6 +80,7 @@ func NewTractor() *Tractor {
 		},
 		HitchOffset: 0.5,
 		CoordSys:    coordSys,
+		Throttle:    0.0,
 	}
 }
 
@@ -144,7 +150,7 @@ func (t *Tractor) UpdateTractorControls(speed float64, steeringAngle float64) {
 
 	t.Speed = speed
 	t.SteeringAngle = steeringAngle
-	fmt.Println("Tractor controls updated: speed = ", t.Speed, " steering angle = ", t.SteeringAngle)
+	//fmt.Println("Tractor controls updated: speed = ", t.Speed, " steering angle = ", t.SteeringAngle)
 }
 
 // UpdateConfiguration updates the physical configuration of the tractor
@@ -225,4 +231,28 @@ func (t *Tractor) GetWorldHitchPosition() types.WorldPosition {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.HitchPos
+}
+
+// Reset resets the tractor to its initial state
+func (t *Tractor) Reset() {
+	t.Position = types.Position{
+		Lat:     0,
+		Lon:     0,
+		Heading: 0,
+		Speed:   0,
+		Time:    time.Now(),
+	}
+	t.WorldPos = types.WorldPosition{
+		X:       0,
+		Y:       0,
+		Heading: 0,
+	}
+	t.HitchPos = types.WorldPosition{
+		X:       0,
+		Y:       0,
+		Heading: 0,
+	}
+	t.SteeringAngle = 0
+	t.Throttle = 0
+	t.Speed = 0
 }

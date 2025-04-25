@@ -21,7 +21,7 @@
         }
         #controlPanel {
             position: absolute;
-            top: 200px;
+            bottom: 20px;
             left: 10px;
             background: rgba(0, 0, 0, 0.7);
             color: white;
@@ -166,7 +166,7 @@
                 <h3>Tractor Settings</h3>
                 <div class="config-item">
                     <label for="wheelbase">Wheelbase (meters):</label>
-                    <input type="number" id="wheelbase" value="2.5" step="0.1" min="0.1">
+                    <input type="number" id="wheelbase" value="2.86" step="0.1" min="0.1">
                 </div>
                 <div class="config-item">
                     <label for="hitchOffset">Hitch Offset (meters):</label>
@@ -177,14 +177,32 @@
                 <h3>Implement Settings</h3>
                 <div class="config-item">
                     <label for="implementLength">Length (meters):</label>
-                    <input type="number" id="implementLength" value="3.0" step="0.1" min="0.1">
+                    <input type="number" id="implementLength" value="5.0" step="0.1" min="0.1">
                 </div>
                 <div class="config-item">
                     <label for="implementWidth">Width (meters):</label>
-                    <input type="number" id="implementWidth" value="3.0" step="0.1" min="0.1">
+                    <input type="number" id="implementWidth" value="10.0" step="0.1" min="0.1">
                 </div>
             </div>
             <button id="startSimulation" class="config-button" disabled>Start Simulation</button>
+        </div>
+    </div>
+    <div id="guidanceTuningPanel" style="position: absolute; bottom: 20px; right: 10px; background: rgba(0, 0, 0, 0.7); color: white; padding: 15px; border-radius: 5px; font-family: monospace; z-index: 100; min-width: 200px;">
+        <h3 style="margin-top: 0;">Guidance Tuning</h3>
+        <div class="control-group">
+            <label for="lookAheadControl">Look-ahead Distance (m)</label>
+            <input type="range" id="lookAheadControl" min="0.1" max="10.0" step="0.1" value="1.0">
+            <span id="lookAheadValue" class="control-value">1.0</span>
+        </div>
+        <div class="control-group">
+            <label for="planningDistControl">Planning Distance (m)</label>
+            <input type="range" id="planningDistControl" min="1.0" max="50.0" step="1.0" value="10.0">
+            <span id="planningDistValue" class="control-value">10.0</span>
+        </div>
+        <div class="control-group">
+            <label for="deadzoneControl">Deadzone (degrees)</label>
+            <input type="range" id="deadzoneControl" min="0.0" max="5.0" step="0.1" value="1.0">
+            <span id="deadzoneValue" class="control-value">1.0</span>
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -214,7 +232,12 @@
             <span id="speedValue" class="control-value">0.0</span>
         </div>
         <div class="control-group">
-            <label for="steeringControl">Steering</label>
+            <label for="steeringControl">
+                Steering
+                <label style="display: inline; margin-left: 10px;">
+                    <input type="checkbox" id="autoSteeringCheckbox"> Auto
+                </label>
+            </label>
             <div style="display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 2px;">
                 <span>Left 30°</span>
                 <span>Right 30°</span>
@@ -223,6 +246,7 @@
             <span id="steeringValue" style="width: 90px;" class="control-value">Center</span>
         </div>
         <button id="centerSteering" class="center-button">Center Steering</button>
+        <button id="resetSimulation" class="center-button" style="margin-top: 10px; background-color: #d44;">Reset Simulation</button>
     </div>
     <div id="cameraPanel">
         <h3 style="margin-top: 0;">Camera View</h3>
@@ -240,6 +264,20 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+
+        // Create guidance arrow
+        const guidanceArrowLength = 20;
+        const guidanceArrowColor = 0x00ff00; // green
+        const guidanceArrow = new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0), // direction - will be updated
+            new THREE.Vector3(0, 1, 0), // origin - will be updated
+            guidanceArrowLength,
+            guidanceArrowColor,
+            5, // headLength
+            3  // headWidth
+        );
+        guidanceArrow.renderOrder = 2; // Ensure arrow renders above other elements
+        scene.add(guidanceArrow);
 
         // Initialize OrbitControls
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -276,6 +314,10 @@
         let tractor = null;
         let implement = null;
         let animationStarted = false;
+        
+        // Add these variables to store guidance information
+        let targetPoint = { X: 0, Y: 0 };
+        let targetSteeringAngle = 0;
         
         // Initialize WebSocket connection
         function connectWebSocket() {
@@ -333,6 +375,9 @@
                     // Update implement angle
                     tractor.setImplementAngle(articulationAngle);
 
+                    // Update guidance arrow origin to match tractor position
+                    guidanceArrow.position.set(tractorPosition.worldX, 1, -tractorPosition.worldY);
+
                     // Update path points
                     tractorPathPoints.push(new THREE.Vector3(tractorPosition.worldX, 0.1, -tractorPosition.worldY));
                     tractorPathGeometry.setFromPoints(tractorPathPoints);
@@ -341,6 +386,72 @@
                     implementPathPoints.push(new THREE.Vector3(implementPosition.worldX, 0.1, -implementPosition.worldY));
                     implementPathGeometry.setFromPoints(implementPathPoints);
                 }
+                if (data.type === 'field') {
+                    // Update field boundary
+                    fieldBoundaryPoints.length = 0;
+                    data.boundary.forEach(point => {
+                        fieldBoundaryPoints.push(new THREE.Vector3(point.X, 0.1, -point.Y));
+                    });
+                    // Close the boundary
+                    if (data.boundary.length > 0) {
+                        fieldBoundaryPoints.push(new THREE.Vector3(
+                            data.boundary[0].X, 0.1, -data.boundary[0].Y
+                        ));
+                    }
+                    fieldBoundaryGeometry.setFromPoints(fieldBoundaryPoints);
+                    
+                    // Request path calculation
+                    requestPathCalculation();
+                }
+                else if (data.type === 'path') {
+                    // Update AB line path
+                    abPathPoints.length = 0;
+                    data.points.forEach(point => {
+                        abPathPoints.push(new THREE.Vector3(point.X, 0.1, -point.Y));
+                    });
+                    abPathGeometry.setFromPoints(abPathPoints);
+                } else if (data.type === 'guidance') {
+                    // Update guidance arrow direction
+                    if (tractor) {
+                        targetPoint = data.targetPoint;
+                        targetSteeringAngle = data.steeringAngle;
+                        const targetPoint3D = new THREE.Vector3(data.targetPoint.X, 1, -data.targetPoint.Y);
+                        const tractorPos = new THREE.Vector3(tractorPosition.worldX, 1, -tractorPosition.worldY);
+                        const direction = targetPoint3D.clone().sub(tractorPos).normalize();
+                        guidanceArrow.setDirection(direction);
+                        guidanceArrow.setLength(guidanceArrowLength);
+                        updateCoordinates(); // Update display when guidance info changes
+                        updateAutoSteering(); // Update auto-steering if enabled
+                    }
+                }
+
+                // Add reset simulation handler
+                document.getElementById('resetSimulation').addEventListener('click', function() {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        // Reset speed and steering controls
+                        speedControl.value = 0;
+                        speedValue.textContent = '0.0';
+                        steeringControl.value = 0;
+                        steeringValue.textContent = 'Center';
+                        steeringControl.disabled = false;
+                        autoSteeringCheckbox.checked = false;
+                        tractor.setImplementAngle(0);
+                        tractor.setSteeringAngle(0);
+
+                        // Clear path arrays
+                        tractorPathPoints.length = 0;
+                        implementPathPoints.length = 0;
+                        abPathPoints.length = 0;
+                        
+                        // Reset path geometries
+                        tractorPathGeometry.setFromPoints(tractorPathPoints);
+                        implementPathGeometry.setFromPoints(implementPathPoints);
+                        abPathGeometry.setFromPoints(abPathPoints);
+                        
+                        // Send reset command to server
+                        ws.send(JSON.stringify({type: 'reset'}));
+                    }
+                });
             };
             
             ws.onclose = function() {
@@ -423,6 +534,12 @@
                 document.getElementById('cameraPanel').style.display = 'block';
                 document.getElementById('resetCamera').style.display = 'block';
                 
+                // Show guidance tuning panel
+                document.getElementById('guidanceTuningPanel').style.display = 'block';
+                
+                // Send initial guidance parameters
+                sendGuidanceParameters();
+                
                 // Hide config panel
                 document.getElementById('configPanel').style.display = 'none';
                 
@@ -431,6 +548,11 @@
                     animationStarted = true;
                     animate();
                 }
+            }
+            
+            // Request field boundary after configuration
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({type: 'getField'}));
             }
         }
 
@@ -542,6 +664,35 @@
         implementPath.frustumCulled = false;
         scene.add(implementPath);
 
+        // Add after the implement path creation and before the WebSocket message handler
+        // Create field boundary line
+        const fieldBoundaryPoints = [];
+        const fieldBoundaryGeometry = new THREE.BufferGeometry();
+        const fieldBoundaryMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x0000ff, // blue
+            linewidth: 2,
+            side: THREE.DoubleSide
+        });
+        const fieldBoundary = new THREE.Line(fieldBoundaryGeometry, fieldBoundaryMaterial);
+        fieldBoundary.renderOrder = 1;
+        fieldBoundary.material.depthTest = false;
+        fieldBoundary.frustumCulled = false;
+        scene.add(fieldBoundary);
+
+        // Create AB line path
+        const abPathPoints = [];
+        const abPathGeometry = new THREE.BufferGeometry();
+        const abPathMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x800080, // purple
+            linewidth: 2,
+            side: THREE.DoubleSide
+        });
+        const abPath = new THREE.Line(abPathGeometry, abPathMaterial);
+        abPath.renderOrder = 1;
+        abPath.material.depthTest = false;
+        abPath.frustumCulled = false;
+        scene.add(abPath);
+
         // Add after scene initialization
         let currentCameraView = 'thirdPerson'; // Global variable for camera view
         
@@ -622,7 +773,11 @@
                 <hr style="border-color: #666;">
                 World X: ${tractorPosition.worldX.toFixed(1)}m<br>
                 World Y: ${tractorPosition.worldY.toFixed(1)}m<br>
-                World Heading: ${tractorPosition.worldHeading.toFixed(1)}° (N=0°)
+                World Heading: ${tractorPosition.worldHeading.toFixed(1)}° (N=0°)<br>
+                <hr style="border-color: #666;">
+                Target X: ${targetPoint.X.toFixed(1)}m<br>
+                Target Y: ${targetPoint.Y.toFixed(1)}m<br>
+                Target Steering: ${(targetSteeringAngle * 180 / Math.PI).toFixed(1)}°
             `;
         }
 
@@ -657,24 +812,46 @@
         const steeringValue = document.getElementById('steeringValue');
         const centerSteeringButton = document.getElementById('centerSteering');
 
-        // Add center steering button handler
-        centerSteeringButton.addEventListener('click', () => {
-            if (!tractor) return; // Don't update if tractor doesn't exist
-            steeringControl.value = 0;
-            steeringValue.textContent = "Center";
-            tractor.setSteeringAngle(0);
+        // Add auto-steering checkbox handling
+        const autoSteeringCheckbox = document.getElementById('autoSteeringCheckbox');
+        
+        // Function to update steering based on target angle
+        function updateAutoSteering() {
+            if (!tractor || !autoSteeringCheckbox.checked) return;
+            
+            // Convert target steering angle from radians to degrees
+            const targetSteeringDegrees = -(targetSteeringAngle * 180 / Math.PI);
+            
+            // Update steering control
+            steeringControl.value = targetSteeringDegrees;
+            
+            // Update display value
+            if (Math.abs(targetSteeringDegrees) < 0.1) {
+                steeringValue.textContent = "Center";
+            } else if (targetSteeringDegrees > 0) {
+                steeringValue.textContent = `Left ${Math.abs(targetSteeringDegrees).toFixed(3)}°`;
+            } else {
+                steeringValue.textContent = `Right ${Math.abs(targetSteeringDegrees).toFixed(3)}°`;
+            }
+            
+            // Send control update to server
             sendTractorControls();
+        }
+
+        // Disable manual steering control when auto-steering is enabled
+        autoSteeringCheckbox.addEventListener('change', function() {
+            steeringControl.disabled = this.checked;
+            if (!this.checked) {
+                // Reset to center when disabling auto-steering
+                steeringControl.value = 0;
+                steeringValue.textContent = "Center";
+                sendTractorControls();
+            }
         });
 
-        // Update display values when sliders change
-        speedControl.addEventListener('input', () => {
-            if (!tractor) return; // Don't update if tractor doesn't exist
-            speedValue.textContent = parseFloat(speedControl.value).toFixed(1);
-            sendTractorControls();
-        });
-
+        // Update the existing steering control event listener
         steeringControl.addEventListener('input', () => {
-            if (!tractor) return; // Don't update if tractor doesn't exist
+            if (!tractor) return; // Don't update if tractor doesn't exist or auto-steering is enabled
             const value = -parseFloat(steeringControl.value);
             if (Math.abs(value) < 0.1) {
                 steeringValue.textContent = "Center";
@@ -687,6 +864,21 @@
             sendTractorControls();
         });
 
+        // Update the center steering button handler
+        centerSteeringButton.addEventListener('click', () => {
+            if (!tractor || autoSteeringCheckbox.checked) return; // Don't update if auto-steering is enabled
+            steeringControl.value = 0;
+            steeringValue.textContent = "Center";
+            tractor.setSteeringAngle(0);
+            sendTractorControls();
+        });
+
+        speedControl.addEventListener('input', () => {
+            const value = parseFloat(speedControl.value);
+            speedValue.textContent = `${value.toFixed(1)} km/h`;
+            sendTractorControls();
+        });
+
         // Handle window resizing
         window.addEventListener('resize', onWindowResize, false);
         function onWindowResize() {
@@ -694,6 +886,62 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
+
+        // Add function to request path calculation
+        function requestPathCalculation() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const config = {
+                    type: 'calculatePath',
+                    config: {
+                        implementWidth: parseFloat(document.getElementById('implementWidth').value)
+                    }
+                };
+                ws.send(JSON.stringify(config));
+            }
+        }
+
+        // Add after the other control panel variables
+        const lookAheadControl = document.getElementById('lookAheadControl');
+        const planningDistControl = document.getElementById('planningDistControl');
+        const deadzoneControl = document.getElementById('deadzoneControl');
+        const lookAheadValue = document.getElementById('lookAheadValue');
+        const planningDistValue = document.getElementById('planningDistValue');
+        const deadzoneValue = document.getElementById('deadzoneValue');
+
+        // Hide guidance tuning panel initially
+        document.getElementById('guidanceTuningPanel').style.display = 'none';
+
+        // Add new function to send guidance parameters
+        function sendGuidanceParameters() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const params = {
+                    type: 'guidanceParams',
+                    lookAheadDistance: parseFloat(lookAheadControl.value),
+                    planningDistance: parseFloat(planningDistControl.value),
+                    deadzone: parseFloat(deadzoneControl.value) * Math.PI / 180.0  // Convert to radians
+                };
+                ws.send(JSON.stringify(params));
+            }
+        }
+
+        // Add event listeners for guidance parameter controls
+        lookAheadControl.addEventListener('input', () => {
+            const value = parseFloat(lookAheadControl.value);
+            lookAheadValue.textContent = `${value.toFixed(1)}`;
+            sendGuidanceParameters();
+        });
+
+        planningDistControl.addEventListener('input', () => {
+            const value = parseFloat(planningDistControl.value);
+            planningDistValue.textContent = `${value.toFixed(1)}`;
+            sendGuidanceParameters();
+        });
+
+        deadzoneControl.addEventListener('input', () => {
+            const value = parseFloat(deadzoneControl.value);
+            deadzoneValue.textContent = `${value.toFixed(1)}°`;
+            sendGuidanceParameters();
+        });
     </script>
 </body>
 </html>

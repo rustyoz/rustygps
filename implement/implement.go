@@ -23,6 +23,7 @@ type Implement struct {
 	LastHitchPos types.WorldPosition     // Previous hitch point in world coordinates
 	LastTime     time.Time               // Time of last update for delta time calculation
 	CoordSys     *types.CoordinateSystem // Reference to coordinate system
+	WorkingWidth float64                 // Width of the implement in meters
 	mu           sync.RWMutex
 }
 
@@ -69,7 +70,7 @@ func (impl *Implement) UpdateConfiguration(length float64, width float64) {
 	defer impl.mu.Unlock()
 
 	impl.Length = length
-	impl.WheelBase = width // Using width as wheelbase for the bicycle model
+	impl.WorkingWidth = width // Store width in WorkingWidth field
 	fmt.Printf("Implement configuration updated: length = %.2f m, width = %.2f m\n", length, width)
 }
 
@@ -197,4 +198,20 @@ func Run(gpsPort string, gpsBaud string) {
 
 	}
 
+}
+
+// Reset resets the implement to its initial state
+func (i *Implement) Reset() {
+	i.Position = types.Position{
+		Lat:     0,
+		Lon:     0,
+		Heading: 0,
+		Speed:   0,
+		Time:    time.Now(),
+	}
+	i.WorldPos = types.WorldPosition{
+		X:       0,
+		Y:       0,
+		Heading: 0,
+	}
 }

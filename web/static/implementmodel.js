@@ -14,7 +14,7 @@ function implementModel(width, length) {
     implementGroup.add(hitchBeam);
 
     // Main toolbar (perpendicular beam that holds the wheels)
-    const toolbarGeometry = new THREE.BoxGeometry(3, 0.2, 0.2);
+    const toolbarGeometry = new THREE.BoxGeometry(width, 0.2, 2);
     const toolbarMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 }); // Gray
     const toolbar = new THREE.Mesh(toolbarGeometry, toolbarMaterial);
     toolbar.name = 'implement-toolbar';
@@ -32,14 +32,14 @@ function implementModel(width, length) {
     // Create and position left wheel
     const leftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
     leftWheel.name = 'implement-left-wheel';
-    leftWheel.position.set(-1.4, wheelRadius, 0); // Aligned with toolbar
+    leftWheel.position.set(-width/2 + 0.1, wheelRadius, 0); // Aligned with toolbar, slight offset from edge
     leftWheel.rotation.z = Math.PI / 2;
     implementGroup.add(leftWheel);
 
     // Create and position right wheel
     const rightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
     rightWheel.name = 'implement-right-wheel';
-    rightWheel.position.set(1.4, wheelRadius, 0); // Aligned with toolbar
+    rightWheel.position.set(width/2 - 0.1, wheelRadius, 0); // Aligned with toolbar, slight offset from edge
     rightWheel.rotation.z = Math.PI / 2;
     implementGroup.add(rightWheel);
 
