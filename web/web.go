@@ -46,17 +46,13 @@ var theGuidance *guidance.Guidance
 func init() {
 	// Create a rectangular field 400m x 800m
 	boundary := []planner.Point{
-		{X: 30, Y: -100},
-		{X: 500, Y: -300},
-		{X: 700, Y: 300},
-		{X: 400, Y: 200},
 		{X: 0, Y: 0},
+		{X: 0, Y: 400},
+		{X: 500, Y: 400},
+		{X: 400, Y: 0},
 	}
 
-	// Create default AB line from bottom to top of field
-	abLine := planner.FindABLine(boundary)
-
-	theField = planner.NewField(boundary, *abLine)
+	theField = planner.NewField(boundary)
 	thePlanner = planner.NewABLinePlanner()
 	theGuidance = guidance.NewGuidance(&thePath)
 }
@@ -103,13 +99,12 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		switch message["type"] {
 		case "getField":
 			// Calculate inner boundary with 10m offset (or whatever offset you prefer)
-			innerBoundary := planner.GenerateInnerBoundary(theField.Boundary, theImplement.WorkingWidth/2)
-
+			thePlanner.GeneratePath(&theField, theTractor, theImplement)
 			response := map[string]interface{}{
 				"type":          "field",
 				"boundary":      theField.Boundary,
 				"abLine":        theField.ABLine,
-				"innerBoundary": innerBoundary,
+				"innerBoundary": theField.WorkingArea,
 			}
 			data, err := json.Marshal(response)
 			if err != nil {
