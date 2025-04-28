@@ -36,9 +36,6 @@ type TractorControls struct {
 	SteeringAngle float64 `json:"steeringAngle"`
 }
 
-var currentTractorPosition types.Position
-var currentImplementPosition types.Position
-
 var theTractor *tractor.Tractor
 var theImplement *implement.Implement
 var thePlanner *planner.ABLinePlanner
@@ -49,10 +46,11 @@ var theGuidance *guidance.Guidance
 func init() {
 	// Create a rectangular field 400m x 800m
 	boundary := []planner.Point{
+		{X: 30, Y: -100},
+		{X: 500, Y: -300},
+		{X: 700, Y: 300},
+		{X: 400, Y: 200},
 		{X: 0, Y: 0},
-		{X: 100, Y: 0},
-		{X: 100, Y: 30},
-		{X: 0, Y: 30},
 	}
 
 	// Create default AB line from bottom to top of field
@@ -104,11 +102,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		switch message["type"] {
 		case "getField":
-			//fmt.Println("getField")
+			// Calculate inner boundary with 10m offset (or whatever offset you prefer)
+			innerBoundary := planner.GenerateInnerBoundary(theField.Boundary, theImplement.WorkingWidth/2)
+
 			response := map[string]interface{}{
-				"type":     "field",
-				"boundary": theField.Boundary,
-				"abLine":   theField.ABLine,
+				"type":          "field",
+				"boundary":      theField.Boundary,
+				"abLine":        theField.ABLine,
+				"innerBoundary": innerBoundary,
 			}
 			data, err := json.Marshal(response)
 			if err != nil {
@@ -122,21 +123,15 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "calculatePath":
-			//fmt.Println("calculatePath")
-			config := planner.PlannerConfig{
-				ImplementWidth:      6.0, // Default 6m implement
-				TractorTurnRadius:   8.0,
-				ImplementTurnRadius: 10.0,
-			}
 
 			// Update config from message if provided
 			if cfg, ok := message["config"].(map[string]interface{}); ok {
 				if width, ok := cfg["implementWidth"].(float64); ok {
-					config.ImplementWidth = width
+					theImplement.WorkingWidth = width
 				}
 			}
 
-			path, err := thePlanner.GeneratePath(theField, config)
+			path, err := thePlanner.GeneratePath(&theField, theTractor, theImplement)
 			thePath = path
 			if err != nil {
 				fmt.Println("error generating path", err)
@@ -181,17 +176,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			theTractor.Reset()
 			theImplement.Reset()
 
-			// Recalculate path
-			path, err := thePlanner.GeneratePath(theField, planner.PlannerConfig{
-				ImplementWidth:      theImplement.WorkingWidth,
-				TractorTurnRadius:   8.0,
-				ImplementTurnRadius: 10.0,
-			})
+			// Recalculate pathreset
+			path, err := thePlanner.GeneratePath(&theField, theTractor, theImplement)
 			if err != nil {
 				fmt.Println("error generating path during reset:", err)
 				continue
 			}
 			thePath = path
+			theGuidance.Reset()
 
 			if theGuidance.Path != &thePath {
 				panic("path not updated")
@@ -222,17 +214,19 @@ func BroadcastPosition() {
 	implementPos := theImplement.GetPosition()
 	implementWorldPos := theImplement.GetWorldPosition()
 	message := struct {
-		Type              string              `json:"type"`
-		TractorPos        types.Position      `json:"tractorPos"`
-		TractorWorldPos   types.WorldPosition `json:"tractorWorldPos"`
-		ImplementPos      types.Position      `json:"implementPos"`
-		ImplementWorldPos types.WorldPosition `json:"implementWorldPos"`
+		Type                  string                `json:"type"`
+		TractorPos            types.Position        `json:"tractorPos"`
+		TractorWorldPos       types.WorldPosition   `json:"tractorWorldPos"`
+		ImplementPos          types.Position        `json:"implementPos"`
+		ImplementWorldPos     types.WorldPosition   `json:"implementWorldPos"`
+		ImplementCoverageLine []types.WorldPosition `json:"implementCoverageLine"`
 	}{
-		Type:              "position",
-		TractorPos:        tractorPos,
-		TractorWorldPos:   tractorWorldPos,
-		ImplementPos:      implementPos,
-		ImplementWorldPos: implementWorldPos,
+		Type:                  "position",
+		TractorPos:            tractorPos,
+		TractorWorldPos:       tractorWorldPos,
+		ImplementPos:          implementPos,
+		ImplementWorldPos:     implementWorldPos,
+		ImplementCoverageLine: theImplement.CoverageLine,
 	}
 
 	data, err := json.Marshal(message)
@@ -285,15 +279,15 @@ func BroadcastGuidance() {
 
 func Run(port string) {
 	// serve the static files
-	http.Handle("/web/static/", http.StripPrefix("/web/static/", http.FileServer(http.Dir("web/static/"))))
-
 	// serve the web interface
 	http.HandleFunc("/ws", handleWebSocket)
+
+	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("web/static/"))))
 
 	// serve position updates to websocket at 10hz
 	go func() {
 		for {
-			currentTractorPosition = theTractor.GetPosition()
+
 			BroadcastPosition()
 			time.Sleep(1000 / 50 * time.Millisecond)
 		}

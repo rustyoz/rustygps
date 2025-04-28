@@ -10,19 +10,19 @@ function tractorModel(wheelbase, hitchoffset) {
     tractorGroup.scale.set(wheelbase / 3, wheelbase / 3, wheelbase / 3);    
 
     // Main body dimensions - adjusted width to match cab
-    const bodyGeometry = new THREE.BoxGeometry(1, 1.5, 4);
+    const bodyGeometry = new THREE.BoxGeometry(4, 1.5, 1);
     const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x2e8b57 }); // Sea green
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.name = 'tractor-body';
-    body.position.set(0, 1.5, 1.5);
+    body.position.set(1.5, 0, 1.5);
     tractorGroup.add(body);
 
     // Cab dimensions
-    const cabGeometry = new THREE.BoxGeometry(1.5, 1.5, 2);
+    const cabGeometry = new THREE.BoxGeometry(2, 1.5, 1.5);
     const cabMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 }); // Dark gray
     const cab = new THREE.Mesh(cabGeometry, cabMaterial);
     cab.name = 'tractor-cab';
-    cab.position.set(0, 2.25, 0.5); // Position cab on top of body, slightly back
+    cab.position.set(0.5, 0, 2.25); // Position cab on top of body, slightly back
     tractorGroup.add(cab);
 
     // Front wheel dimensions
@@ -42,8 +42,8 @@ function tractorModel(wheelbase, hitchoffset) {
     const frontRightWheelGroup = new THREE.Group();
     frontLeftWheelGroup.name = 'front-left-wheel-group';
     frontRightWheelGroup.name = 'front-right-wheel-group';
-    frontLeftWheelGroup.position.set(-1.2, frontWheelRadius, 3);
-    frontRightWheelGroup.position.set(1.2, frontWheelRadius, 3);
+    frontLeftWheelGroup.position.set(3, -1.2, frontWheelRadius);
+    frontRightWheelGroup.position.set(3, 1.2, frontWheelRadius);
     tractorGroup.add(frontLeftWheelGroup);
     tractorGroup.add(frontRightWheelGroup);
 
@@ -52,8 +52,7 @@ function tractorModel(wheelbase, hitchoffset) {
     const frontRightWheel = new THREE.Mesh(frontWheelGeometry, wheelMaterial);
     frontLeftWheel.name = 'front-left-wheel';
     frontRightWheel.name = 'front-right-wheel';
-    frontLeftWheel.rotation.z = Math.PI / 2;
-    frontRightWheel.rotation.z = Math.PI / 2;
+
     frontLeftWheelGroup.add(frontLeftWheel);
     frontRightWheelGroup.add(frontRightWheel);
 
@@ -62,10 +61,8 @@ function tractorModel(wheelbase, hitchoffset) {
     const rearRightWheel = new THREE.Mesh(rearWheelGeometry, wheelMaterial);
     rearLeftWheel.name = 'rear-left-wheel';
     rearRightWheel.name = 'rear-right-wheel';
-    rearLeftWheel.position.set(-1.2, rearWheelRadius, 0);
-    rearRightWheel.position.set(1.2, rearWheelRadius, 0);
-    rearLeftWheel.rotation.z = Math.PI / 2;
-    rearRightWheel.rotation.z = Math.PI / 2;
+    rearLeftWheel.position.set(0, -1.2, rearWheelRadius);
+    rearRightWheel.position.set(0, 1.2, rearWheelRadius);
     tractorGroup.add(rearLeftWheel);
     tractorGroup.add(rearRightWheel);
 
@@ -76,24 +73,22 @@ function tractorModel(wheelbase, hitchoffset) {
     // Front axle
     const frontAxle = new THREE.Mesh(axleGeometry, axleMaterial);
     frontAxle.name = 'front-axle';
-    frontAxle.position.set(0, frontWheelRadius, 3);
-    frontAxle.rotation.z = Math.PI / 2;
+    frontAxle.position.set(3, 0, frontWheelRadius);
     tractorGroup.add(frontAxle);
 
     // Back axle - positioned higher for larger wheels
     const backAxle = new THREE.Mesh(axleGeometry, axleMaterial);
     backAxle.name = 'rear-axle';
-    backAxle.position.set(0, rearWheelRadius, 0);
-    backAxle.rotation.z = Math.PI / 2;
+    backAxle.position.set(0, 0, rearWheelRadius);
     tractorGroup.add(backAxle);
 
     // Add hitch
-    const hitchGeometry = new THREE.BoxGeometry(0.2, 0.2, hitchoffset);
+    const hitchGeometry = new THREE.BoxGeometry(hitchoffset, 0.2, 0.2);
     const hitchMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 }); // Gray
     const hitch = new THREE.Mesh(hitchGeometry, hitchMaterial);
     hitch.name = 'hitch';
     // Position the hitch behind the tractor, centered horizontally and at a reasonable height
-    hitch.position.set(0, 1, -hitchoffset/2);
+    hitch.position.set(-hitchoffset/2, 0, 1);
     tractorGroup.add(hitch);
 
     
@@ -101,8 +96,8 @@ function tractorModel(wheelbase, hitchoffset) {
     // Add method to update steering angle
     tractorGroup.setSteeringAngle = function(angleInDegrees) {
         const angleInRadians = (angleInDegrees * Math.PI) / 180;
-        frontLeftWheelGroup.rotation.y = angleInRadians;
-        frontRightWheelGroup.rotation.y = angleInRadians;
+        frontLeftWheelGroup.rotation.z = angleInRadians;
+        frontRightWheelGroup.rotation.z = angleInRadians;
     };
 
 
@@ -118,13 +113,13 @@ function addImplement(tractor, implement) {
     // create a group to hold the implement
     const implementGroup = new THREE.Group();
     implementGroup.name = 'implementgroup';
-    implementGroup.position.set(0, 0, -hitchoffset);
+    implementGroup.position.set(-hitchoffset, 0, 0);
     implementGroup.add(implement);
     tractor.add(implementGroup);
     
     // add a method to set the implement angle
     tractor.setImplementAngle = function(angle) {
-        implementGroup.rotation.y = angle;
+        implementGroup.rotation.z = angle;
     };
 }
 
@@ -134,5 +129,5 @@ function getHitchOffset(tractor) {
 
 
 function getImplementAngle(tractor) {
-    return tractor.implementgroup.rotation.y;
+    return tractor.implementgroup.rotation.z;
 }

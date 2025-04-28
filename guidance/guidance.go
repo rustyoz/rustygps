@@ -116,6 +116,12 @@ func findLookAheadPoint(state TractorState, path []planner.Point, lookAheadDist 
 var lastVisitedPointIndex int = 0
 
 func (g *Guidance) GetTargetPoint() planner.Point {
+
+	// return target point if is beyond the planning distance
+	if distance(g.TractorState.WorldPos.X, g.TractorState.WorldPos.Y, g.TargetPoint.X, g.TargetPoint.Y) > g.GuidanceConfig.PlanningDistance {
+		return g.TargetPoint
+	}
+
 	// start at the last visited point index
 	for i := lastVisitedPointIndex; i < len(*g.Path); i++ {
 		dist := distance(g.TractorState.WorldPos.X, g.TractorState.WorldPos.Y, (*g.Path)[i].X, (*g.Path)[i].Y)
@@ -123,7 +129,8 @@ func (g *Guidance) GetTargetPoint() planner.Point {
 		// Mark points as visited if we're close enough
 		if dist < g.GuidanceConfig.PlanningDistance {
 			(*g.Path)[i].Visited = true
-			lastVisitedPointIndex = i
+			lastVisitedPointIndex = i // Return first unvisited point
+
 		}
 
 		// Return first unvisited point

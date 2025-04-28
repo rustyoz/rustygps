@@ -16,15 +16,16 @@ import (
 )
 
 type Implement struct {
-	Position     types.Position          // GPS position
-	WorldPos     types.WorldPosition     // Position in world coordinates
-	Length       float64                 // Distance from hitch point to implement axle in meters
-	WheelBase    float64                 // Distance between axles (for bicycle model)
-	LastHitchPos types.WorldPosition     // Previous hitch point in world coordinates
-	LastTime     time.Time               // Time of last update for delta time calculation
-	CoordSys     *types.CoordinateSystem // Reference to coordinate system
-	WorkingWidth float64                 // Width of the implement in meters
-	mu           sync.RWMutex
+	Position     types.Position          `json:"position"`     // GPS position
+	WorldPos     types.WorldPosition     `json:"worldPos"`     // Position in world coordinates
+	Length       float64                 `json:"length"`       // Distance from hitch point to implement axle in meters
+	WheelBase    float64                 `json:"wheelBase"`    // Distance between axles (for bicycle model)
+	LastHitchPos types.WorldPosition     `json:"lastHitchPos"` // Previous hitch point in world coordinates
+	LastTime     time.Time               `json:"lastTime"`     // Time of last update for delta time calculation
+	CoordSys     *types.CoordinateSystem `json:"coordSys"`     // Reference to coordinate system
+	WorkingWidth float64                 `json:"workingWidth"` // Width of the implement in meters
+	CoverageLine []types.WorldPosition   `json:"coverageLine"` // Line of coverage in world coordinates, as wide as the implement, perpendicular to the implement's heading
+	mu           sync.RWMutex            // Mutex does not need to be serialized
 }
 
 // NewImplement creates a new implement with default values
@@ -89,12 +90,6 @@ func (impl *Implement) UpdatePosition(tractorHitchPos types.WorldPosition) {
 	// Calculate tractor velocity
 	tractorVelocity := math.Sqrt(hitchDeltaX*hitchDeltaX+hitchDeltaY*hitchDeltaY) / dt
 
-	if tractorVelocity == 0 {
-		// If nearly stationary, maintain current position
-		impl.LastHitchPos = tractorHitchPos
-		return
-	}
-
 	// Calculate the angle between the tractor and implement (articulation angle)
 	articulationAngle := tractorHitchPos.Heading - impl.WorldPos.Heading
 
@@ -128,6 +123,33 @@ func (impl *Implement) UpdatePosition(tractorHitchPos types.WorldPosition) {
 	// Update implement position based on new heading and hitch point
 	impl.WorldPos.X = tractorHitchPos.X - impl.Length*math.Cos(impl.WorldPos.Heading)
 	impl.WorldPos.Y = tractorHitchPos.Y - impl.Length*math.Sin(impl.WorldPos.Heading)
+
+	// calculate the coverage line
+	// create a vector from the implement to the hitch point
+	v := types.Vector{
+		X: tractorHitchPos.X - impl.WorldPos.X,
+		Y: tractorHitchPos.Y - impl.WorldPos.Y,
+	}
+	// rotate the vector 90 degrees counterclockwise
+	vl := types.Vector{
+		X: -v.Y,
+		Y: v.X,
+	}
+	// normalize the vector, and then scale to the implement's width
+	vl = types.Vector{
+		X: vl.X / math.Sqrt(vl.X*vl.X+vl.Y*vl.Y),
+		Y: vl.Y / math.Sqrt(vl.X*vl.X+vl.Y*vl.Y),
+	}
+	vl = types.Vector{
+		X: vl.X * impl.WorkingWidth / 2,
+		Y: vl.Y * impl.WorkingWidth / 2,
+	} // scale the vector to the implement's width
+
+	// add the vector to the implement's position to get the coverage line
+	impl.CoverageLine = []types.WorldPosition{
+		{X: impl.WorldPos.X + vl.X, Y: impl.WorldPos.Y + vl.Y},
+		{X: impl.WorldPos.X - vl.X, Y: impl.WorldPos.Y - vl.Y},
+	}
 
 	// Store current hitch position for next update
 	impl.LastHitchPos = tractorHitchPos

@@ -5,8 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Tractor Map</title>
     <style>
-        body { margin: 0; }
-        canvas { display: block; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: monospace;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        #info h2 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        #info p {
+            margin: 5px 0;
+        }
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        .control-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        .control-group h4 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+        }
+        .control-item {
+            margin-bottom: 5px;
+        }
+        .control-item label {
+            display: inline-block;
+            width: 120px;
+        }
+        .control-item input {
+            width: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #666;
+            color: white;
+            border-radius: 3px;
+        }
+        .control-item span {
+            display: inline-block;
+            width: 40px;
+            text-align: right;
+        }
+        .control-item button {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .control-item button:hover {
+            background: #444;
+        }
+        .control-item button:active {
+            background: #555;
+        }
         #coordinates {
             position: absolute;
             top: 10px;
@@ -30,21 +109,6 @@
             font-family: monospace;
             z-index: 100;
             min-width: 200px;
-        }
-        .control-group {
-            margin: 10px 0;
-        }
-        .control-group label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        .control-value {
-            display: inline-block;
-            text-align: right;
-            margin-left: 10px;
-        }
-        input[type="range"] {
-            width: 100%;
         }
         .center-button {
             background: #444;
@@ -125,6 +189,7 @@
             font-family: monospace;
             z-index: 100;
             min-width: 200px;
+            display: none; /* Hide the config panel by default */
         }
         .config-form {
             margin-bottom: 10px;
@@ -157,36 +222,200 @@
         .config-button:hover {
             background: #555;
         }
+        /* Settings Panel Styles */
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: none;
+            color: white;
+            font-family: monospace;
+        }
+
+        .settings-sidebar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 200px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .settings-categories {
+            margin-top: 20px;
+        }
+
+        .settings-category {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #333;
+            border: none;
+            color: white;
+            cursor: pointer;
+            text-align: left;
+            border-radius: 3px;
+        }
+
+        .settings-category:hover {
+            background: #444;
+        }
+
+        .settings-category.active {
+            background: #666;
+        }
+
+        .settings-content {
+            position: absolute;
+            left: 200px;
+            top: 0;
+            right: 0;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .settings-group {
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .settings-item {
+            margin-bottom: 10px;
+        }
+
+        .settings-item label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .settings-item input {
+            width: 100%;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #666;
+            color: white;
+            border-radius: 3px;
+        }
+
+        .open-settings-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 100;
+        }
+
+        .close-settings-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .close-settings-button:hover {
+            color: #ccc;
+        }
+
+        .settings-buttons {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .settings-button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .settings-button:hover {
+            background: #555;
+        }
+
+        .settings-button.save {
+            background: #2a6d2a;
+        }
+
+        .settings-button.save:hover {
+            background: #368736;
+        }
+
+        .settings-button.cancel {
+            background: #6d2a2a;
+        }
+
+        .settings-button.cancel:hover {
+            background: #873636;
+        }
+        
+        /* Axis key panel styles */
+        #axisKeyPanel {
+            position: absolute;
+            bottom: 200px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 100;
+            min-width: 150px;
+        }
+        
+        .axis-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .axis-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+        
+        .axis-x {
+            background-color: #ff0000;
+        }
+        
+        .axis-y {
+            background-color: #00ff00;
+        }
+        
+        .axis-z {
+            background-color: #0000ff;
+        }
     </style>
-    <!-- Add configuration panel -->
-    <div id="configPanel" class="config-panel">
-        <h2>Tractor & Implement Configuration</h2>
-        <div class="config-form">
-            <div class="config-group">
-                <h3>Tractor Settings</h3>
-                <div class="config-item">
-                    <label for="wheelbase">Wheelbase (meters):</label>
-                    <input type="number" id="wheelbase" value="2.86" step="0.1" min="0.1">
-                </div>
-                <div class="config-item">
-                    <label for="hitchOffset">Hitch Offset (meters):</label>
-                    <input type="number" id="hitchOffset" value="1.0" step="0.1" min="0.1">
-                </div>
-            </div>
-            <div class="config-group">
-                <h3>Implement Settings</h3>
-                <div class="config-item">
-                    <label for="implementLength">Length (meters):</label>
-                    <input type="number" id="implementLength" value="5.0" step="0.1" min="0.1">
-                </div>
-                <div class="config-item">
-                    <label for="implementWidth">Width (meters):</label>
-                    <input type="number" id="implementWidth" value="10.0" step="0.1" min="0.1">
-                </div>
-            </div>
-            <button id="startSimulation" class="config-button" disabled>Start Simulation</button>
-        </div>
-    </div>
+    
     <div id="guidanceTuningPanel" style="position: absolute; bottom: 20px; right: 10px; background: rgba(0, 0, 0, 0.7); color: white; padding: 15px; border-radius: 5px; font-family: monospace; z-index: 100; min-width: 200px;">
         <h3 style="margin-top: 0;">Guidance Tuning</h3>
         <div class="control-group">
@@ -196,8 +425,8 @@
         </div>
         <div class="control-group">
             <label for="planningDistControl">Planning Distance (m)</label>
-            <input type="range" id="planningDistControl" min="1.0" max="50.0" step="1.0" value="10.0">
-            <span id="planningDistValue" class="control-value">10.0</span>
+            <input type="range" id="planningDistControl" min="1.0" max="10.0" step="0.25" value="3.0">
+            <span id="planningDistValue" class="control-value">3.0</span>
         </div>
         <div class="control-group">
             <label for="deadzoneControl">Deadzone (degrees)</label>
@@ -205,13 +434,108 @@
             <span id="deadzoneValue" class="control-value">1.0</span>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/three/examples/js/loaders/TextureLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="tractormodel.js"></script>
-    <script src="implementmodel.js"></script>
-</head>
-<body>
+    <!-- Add settings panel -->
+    <div id="settingsPanel" class="settings-panel">
+        <div class="settings-sidebar">
+            <h3>Settings</h3>
+            <div class="settings-categories">
+                <button class="settings-category active" data-category="tractor">Tractor</button>
+                <button class="settings-category" data-category="implement">Implement</button>
+                <button class="settings-category" data-category="gps">GPS</button>
+                <button class="settings-category" data-category="planner">Planner</button>
+                <button class="settings-category" data-category="guidance">Guidance</button>
+            </div>
+        </div>
+        <div class="settings-content">
+            <div class="settings-category-content" id="tractor-settings">
+                <h2>Tractor Settings</h2>
+                <div class="settings-group">
+                    <h3>Dimensions</h3>
+                    <div class="settings-item">
+                        <label for="settings-wheelbase">Wheelbase (meters):</label>
+                        <input type="number" id="settings-wheelbase" value="2.86" step="0.1" min="0.1">
+                    </div>
+                    <div class="settings-item">
+                        <label for="settings-hitchOffset">Hitch Offset (meters):</label>
+                        <input type="number" id="settings-hitchOffset" value="1.0" step="0.1" min="0.1">
+                    </div>
+                </div>
+            </div>
+            <div class="settings-category-content" id="implement-settings" style="display: none;">
+                <h2>Implement Settings</h2>
+                <div class="settings-group">
+                    <h3>Dimensions</h3>
+                    <div class="settings-item">
+                        <label for="settings-implementLength">Length (meters):</label>
+                        <input type="number" id="settings-implementLength" value="5.0" step="0.1" min="0.1">
+                    </div>
+                    <div class="settings-item">
+                        <label for="settings-implementWidth">Width (meters):</label>
+                        <input type="number" id="settings-implementWidth" value="10.0" step="0.1" min="0.1">
+                    </div>
+                </div>
+            </div>
+            <div class="settings-category-content" id="gps-settings" style="display: none;">
+                <h2>GPS Settings</h2>
+                <div class="settings-group">
+                    <h3>Position</h3>
+                    <div class="settings-item">
+                        <label for="settings-gpsLat">Latitude:</label>
+                        <input type="number" id="settings-gpsLat" value="-36.8013" step="0.0001">
+                    </div>
+                    <div class="settings-item">
+                        <label for="settings-gpsLon">Longitude:</label>
+                        <input type="number" id="settings-gpsLon" value="142.3142" step="0.0001">
+                    </div>
+                </div>
+            </div>
+            <div class="settings-category-content" id="planner-settings" style="display: none;">
+                <h2>Planner Settings</h2>
+                <div class="settings-group">
+                    <h3>Path Planning</h3>
+                    <div class="settings-item">
+                        <label for="settings-planningDistance">Planning Distance (m):</label>
+                        <input type="number" id="settings-planningDistance" value="3.0" step="0.25" min="1.0" max="10.0">
+                    </div>
+                </div>
+            </div>
+            <div class="settings-category-content" id="guidance-settings" style="display: none;">
+                <h2>Guidance Settings</h2>
+                <div class="settings-group">
+                    <h3>Parameters</h3>
+                    <div class="settings-item">
+                        <label for="settings-lookAhead">Look-ahead Distance (m):</label>
+                        <input type="number" id="settings-lookAhead" value="1.0" step="0.1" min="0.1" max="10.0">
+                    </div>
+                    <div class="settings-item">
+                        <label for="settings-deadzone">Deadzone (degrees):</label>
+                        <input type="number" id="settings-deadzone" value="1.0" step="0.1" min="0.0" max="5.0">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button id="closeSettingsX" class="close-settings-button">×</button>
+        <div class="settings-buttons">
+            <button id="closeSettings" class="settings-button cancel">Cancel</button>
+            <button id="saveSettings" class="settings-button save">Save</button>
+        </div>
+    </div>
+    <button id="openSettings" class="open-settings-button">⚙️</button>
+    <div id="axisKeyPanel">
+        <h3 style="margin-top: 0;">Axis Legend</h3>
+        <div class="axis-item">
+            <div class="axis-color axis-x"></div>
+            <span>X-Axis (East)</span>
+        </div>
+        <div class="axis-item">
+            <div class="axis-color axis-y"></div>
+            <span>Y-Axis (North)</span>
+        </div>
+        <div class="axis-item">
+            <div class="axis-color axis-z"></div>
+            <span>Z-Axis (Up)</span>
+        </div>
+    </div>
     <div id="coordinates">
         Lat: 0.000°<br>
         Lon: 0.000°<br>
@@ -253,14 +577,18 @@
         <button id="thirdPersonView" class="camera-button active">Third Person</button>
         <button id="followView" class="camera-button">Follow</button>
         <button id="firstPersonView" class="camera-button">First Person</button>
+        <button id="birdsEyeView" class="camera-button">Birds Eye</button>
+        <button id="resetCamera" class="camera-button" style="background-color: #d44; color: white;">Reset Camera</button>
     </div>
-    <button id="resetCamera" style="position: absolute; bottom: 20px; right: 20px; padding: 10px; z-index: 100;">
-        Reset Camera
-    </button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/ImageBitmapLoader.js"></script>
+    <script src="tractormodel.js"></script>
+    <script src="implementmodel.js"></script>
     <script>
         // Initialize Three.js scene, camera, and renderer
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
@@ -278,35 +606,51 @@
         );
         guidanceArrow.renderOrder = 2; // Ensure arrow renders above other elements
         scene.add(guidanceArrow);
+        camera.up.set(0, 0, 1);
 
         // Initialize OrbitControls
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true; // Smooth camera movements
         controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = false;
+        controls.screenSpacePanning = true; // Enable proper panning in the XY plane
         controls.minDistance = 5;
         controls.maxDistance = 5000;
         controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
+        
+        // Set the camera's up vector to align with the z-axis (up in ENU)
+        camera.up.set(0, 0, 1);
+        
+        // We'll add the event listener after the arrows are created
+        // controls.addEventListener('change', updateArrowScale);
+        // Initial scale update will be done after arrow creation
+        // updateArrowScale();
 
         // Add reset camera function
         function resetCamera() {
             controls.reset();
-            camera.position.set(0, 200, 200);
+            camera.position.set(200, 200, 200);
+            // Set camera up vector to z-axis (up in ENU coordinates)
+            camera.up.set(0, 0, 1);
             if (tractor) {
                 controls.target.copy(tractor.position);
+            }
+            // Update arrow scale after camera reset if arrows exist
+            if (arrowX && arrowY && arrowZ) {
+                updateArrowScale();
             }
         }
 
         // Add event listener for reset button
         document.getElementById('resetCamera').addEventListener('click', resetCamera);
 
-        // Hide all UI elements initially except config panel
+        // Hide UI elements initially
         document.getElementById('coordinates').style.display = 'none';
         document.getElementById('fpsCounter').style.display = 'none';
         document.getElementById('updateCounter').style.display = 'none';
         document.getElementById('controlPanel').style.display = 'none';
         document.getElementById('cameraPanel').style.display = 'none';
-        document.getElementById('resetCamera').style.display = 'none';
+        document.getElementById('guidanceTuningPanel').style.display = 'none';
+        document.getElementById('axisKeyPanel').style.display = 'none';
 
         // Configuration handling
         let ws;
@@ -325,7 +669,8 @@
             
             ws.onopen = function() {
                 console.log('WebSocket connected');
-                document.getElementById('startSimulation').disabled = false;
+                // Automatically start simulation instead of waiting for button click
+                autoStartSimulation();
             };
             
             ws.onmessage = function(event) {
@@ -365,40 +710,67 @@
                         worldHeading: data.implementWorldPos.Heading
                     };
 
+                    // Add coverage line if speed is not 0 and coverage line data exists
+                    if (data.implementCoverageLine && data.tractorPos.Speed !== 0) {
+                        addCoverageLine(data.implementCoverageLine);
+                    }
+
                     articulationAngle = implementPosition.worldHeading - tractorPosition.worldHeading;
                     
                     // Update tractor position and rotation
                     tractor.position.x = tractorPosition.worldX;
-                    tractor.position.z = -tractorPosition.worldY;
-                    tractor.rotation.y = tractorPosition.worldHeading + Math.PI/2;
+                    tractor.position.y = tractorPosition.worldY;
+                    tractor.position.z = 0;
+                    tractor.rotation.z = tractorPosition.worldHeading;
 
                     // Update implement angle
                     tractor.setImplementAngle(articulationAngle);
 
                     // Update guidance arrow origin to match tractor position
-                    guidanceArrow.position.set(tractorPosition.worldX, 1, -tractorPosition.worldY);
+                    guidanceArrow.position.set(tractorPosition.worldX, tractorPosition.worldY, 1);
 
                     // Update path points
-                    tractorPathPoints.push(new THREE.Vector3(tractorPosition.worldX, 0.1, -tractorPosition.worldY));
+                    tractorPathPoints.push(new THREE.Vector3(tractorPosition.worldX, tractorPosition.worldY, 0.1));
                     tractorPathGeometry.setFromPoints(tractorPathPoints);
 
                     // Update implement path points
-                    implementPathPoints.push(new THREE.Vector3(implementPosition.worldX, 0.1, -implementPosition.worldY));
+                    implementPathPoints.push(new THREE.Vector3(implementPosition.worldX, implementPosition.worldY, 0.1));
                     implementPathGeometry.setFromPoints(implementPathPoints);
                 }
                 if (data.type === 'field') {
                     // Update field boundary
                     fieldBoundaryPoints.length = 0;
                     data.boundary.forEach(point => {
-                        fieldBoundaryPoints.push(new THREE.Vector3(point.X, 0.1, -point.Y));
+                        fieldBoundaryPoints.push(new THREE.Vector3(point.X, point.Y, 0.1));
                     });
                     // Close the boundary
                     if (data.boundary.length > 0) {
                         fieldBoundaryPoints.push(new THREE.Vector3(
-                            data.boundary[0].X, 0.1, -data.boundary[0].Y
+                            data.boundary[0].X, data.boundary[0].Y, 0.1
                         ));
                     }
                     fieldBoundaryGeometry.setFromPoints(fieldBoundaryPoints);
+                    
+                    // Update inner boundary
+                    innerBoundaryPoints.length = 0;
+                    if (data.innerBoundary && data.innerBoundary.length > 0) {
+                        data.innerBoundary.forEach(point => {
+                            innerBoundaryPoints.push(new THREE.Vector3(point.X, point.Y, 0.1));
+                        });
+                        // Close the inner boundary
+                        innerBoundaryPoints.push(new THREE.Vector3(
+                            data.innerBoundary[0].X, data.innerBoundary[0].Y, 0.1
+                        ));
+                    }
+                    innerBoundaryGeometry.setFromPoints(innerBoundaryPoints);
+                    
+                    // Update AB line if provided
+                    if (data.abLine) {
+                        abPathPoints.length = 0;
+                        abPathPoints.push(new THREE.Vector3(data.abLine.PointA.X, data.abLine.PointA.Y, 0.1));
+                        abPathPoints.push(new THREE.Vector3(data.abLine.PointB.X, data.abLine.PointB.Y, 0.1));
+                        abPathGeometry.setFromPoints(abPathPoints);
+                    }
                     
                     // Request path calculation
                     requestPathCalculation();
@@ -407,16 +779,29 @@
                     // Update AB line path
                     abPathPoints.length = 0;
                     data.points.forEach(point => {
-                        abPathPoints.push(new THREE.Vector3(point.X, 0.1, -point.Y));
+                        abPathPoints.push(new THREE.Vector3(point.X, point.Y, 0.1));
                     });
                     abPathGeometry.setFromPoints(abPathPoints);
+                    
+                    // Update markers if there are points
+                    if (abPathPoints.length >= 2) {
+                        // Position start marker at first point
+                        startMarker.position.set(abPathPoints[0].x, abPathPoints[0].y, 0.1);
+                        
+                        // Position end marker at last point
+                        endMarker.position.set(
+                            abPathPoints[abPathPoints.length - 1].x,
+                            abPathPoints[abPathPoints.length - 1].y,
+                            0.1
+                        );
+                    }
                 } else if (data.type === 'guidance') {
                     // Update guidance arrow direction
                     if (tractor) {
                         targetPoint = data.targetPoint;
                         targetSteeringAngle = data.steeringAngle;
-                        const targetPoint3D = new THREE.Vector3(data.targetPoint.X, 1, -data.targetPoint.Y);
-                        const tractorPos = new THREE.Vector3(tractorPosition.worldX, 1, -tractorPosition.worldY);
+                        const targetPoint3D = new THREE.Vector3(data.targetPoint.X, data.targetPoint.Y, 1);
+                        const tractorPos = new THREE.Vector3(tractorPosition.worldX, tractorPosition.worldY, 1);
                         const direction = targetPoint3D.clone().sub(tractorPos).normalize();
                         guidanceArrow.setDirection(direction);
                         guidanceArrow.setLength(guidanceArrowLength);
@@ -456,18 +841,162 @@
             
             ws.onclose = function() {
                 console.log('WebSocket disconnected, attempting to reconnect...');
-                document.getElementById('startSimulation').disabled = true;
                 setTimeout(connectWebSocket, 1000);
             };
 
             ws.onerror = function(error) {
                 console.error('WebSocket error:', error);
-                document.getElementById('startSimulation').disabled = true;
             };
         }
 
         // Connect to WebSocket when page loads
         connectWebSocket();
+
+        // Function to auto-start the simulation
+        function autoStartSimulation() {
+            if (!configSent && ws && ws.readyState === WebSocket.OPEN) {
+                // Try to load settings from cookies first
+                loadSettingsFromCookies();
+                
+                const config = {
+                    type: 'config',
+                    tractor: {
+                        wheelbase: parseFloat(document.getElementById('settings-wheelbase').value),
+                        hitchOffset: parseFloat(document.getElementById('settings-hitchOffset').value)
+                    },
+                    implement: {
+                        length: parseFloat(document.getElementById('settings-implementLength').value),
+                        width: parseFloat(document.getElementById('settings-implementWidth').value)
+                    }
+                };
+
+                ws.send(JSON.stringify(config));
+                configSent = true;
+                
+                // Create 3D models with configured dimensions
+                createModels(config);
+                
+                // Make sure all UI elements are visible
+                document.getElementById('coordinates').style.display = 'block';
+                document.getElementById('fpsCounter').style.display = 'block';
+                document.getElementById('updateCounter').style.display = 'block';
+                document.getElementById('controlPanel').style.display = 'block';
+                document.getElementById('cameraPanel').style.display = 'block';
+                document.getElementById('guidanceTuningPanel').style.display = 'block';
+                document.getElementById('axisKeyPanel').style.display = 'block';
+                
+                
+                // Send initial guidance parameters
+                sendGuidanceParameters();
+                
+                // Start the animation loop if not already started
+                if (!animationStarted) {
+                    animationStarted = true;
+                    animate();
+                }
+
+                // Request field boundary after configuration
+                ws.send(JSON.stringify({type: 'getField'}));
+            }
+        }
+
+        // Cookie functions for settings
+        function setCookie(name, value, days) {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+            document.cookie = name + '=' + JSON.stringify(value) + ';expires=' + expires.toUTCString() + ';path=/';
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + '=';
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) {
+                    try {
+                        return JSON.parse(c.substring(nameEQ.length, c.length));
+                    } catch (e) {
+                        console.error('Error parsing cookie:', e);
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Load settings from cookies
+        function loadSettingsFromCookies() {
+            const settings = getCookie('tractorSettings');
+            if (settings) {
+                // Load values if they exist
+                if (settings.tractor) {
+                    if (settings.tractor.wheelbase) {
+                        document.getElementById('settings-wheelbase').value = settings.tractor.wheelbase;
+                    }
+                    if (settings.tractor.hitchOffset) {
+                        document.getElementById('settings-hitchOffset').value = settings.tractor.hitchOffset;
+                    }
+                }
+                
+                if (settings.implement) {
+                    if (settings.implement.length) {
+                       document.getElementById('settings-implementLength').value = settings.implement.length;
+                    }
+                    if (settings.implement.width) {
+                        document.getElementById('settings-implementWidth').value = settings.implement.width;
+                    }
+                }
+                
+                if (settings.guidance) {
+                    if (settings.guidance.lookAhead) {
+                        document.getElementById('lookAheadControl').value = settings.guidance.lookAhead;
+                        document.getElementById('settings-lookAhead').value = settings.guidance.lookAhead;
+                        lookAheadValue.textContent = settings.guidance.lookAhead;
+                    }
+                    if (settings.guidance.planningDistance) {
+                        document.getElementById('planningDistControl').value = settings.guidance.planningDistance;
+                        document.getElementById('settings-planningDistance').value = settings.guidance.planningDistance;
+                        planningDistValue.textContent = settings.guidance.planningDistance;
+                    }
+                    if (settings.guidance.deadzone) {
+                        document.getElementById('deadzoneControl').value = settings.guidance.deadzone;
+                        document.getElementById('settings-deadzone').value = settings.guidance.deadzone;
+                        deadzoneValue.textContent = settings.guidance.deadzone + '°';
+                    }
+                }
+
+                console.log('Settings loaded from cookies:', settings);
+            }
+        }
+
+        // Save settings to cookies
+        function saveSettingsToCookies() {
+            const settings = {
+                tractor: {
+                    wheelbase: parseFloat(document.getElementById('settings-wheelbase').value),
+                    hitchOffset: parseFloat(document.getElementById('settings-hitchOffset').value)
+                },
+                implement: {
+                    length: parseFloat(document.getElementById('settings-implementLength').value),
+                    width: parseFloat(document.getElementById('settings-implementWidth').value)
+                },
+                gps: {
+                    lat: parseFloat(document.getElementById('settings-gpsLat').value),
+                    lon: parseFloat(document.getElementById('settings-gpsLon').value)
+                },
+                guidance: {
+                    lookAhead: parseFloat(document.getElementById('settings-lookAhead').value),
+                    planningDistance: parseFloat(document.getElementById('settings-planningDistance').value),
+                    deadzone: parseFloat(document.getElementById('settings-deadzone').value)
+                }
+            };
+            
+            setCookie('tractorSettings', settings, 365); // Save for 1 year
+            console.log('Settings saved to cookies:', settings);
+            
+            return settings;
+        }
 
         // Add function to send tractor controls
         function sendTractorControls() {
@@ -495,69 +1024,18 @@
             scene.add(tractor);
             
             // Position camera for better view
-            camera.position.set(0, 200, 200);
-            camera.lookAt(tractor.position.x, tractor.position.y+10, tractor.position.z);
+            camera.position.set(200, 200, 200);
+            camera.lookAt(tractor.position.x, tractor.position.y, tractor.position.z+10);
+            camera.up.set(0, 0, 1); // Set Z as up direction
             
             // Add lighting
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            directionalLight.position.set(0, 10, 0);
+            directionalLight.position.set(0, 0, 10);
             scene.add(directionalLight);
         }
         
-        function sendConfiguration() {
-            const config = {
-                type: 'config',
-                tractor: {
-                    wheelbase: parseFloat(document.getElementById('wheelbase').value),
-                    hitchOffset: parseFloat(document.getElementById('hitchOffset').value)
-                },
-                implement: {
-                    length: parseFloat(document.getElementById('implementLength').value),
-                    width: parseFloat(document.getElementById('implementWidth').value)
-                }
-            };
-
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(config));
-                configSent = true;
-                
-                // Create 3D models with configured dimensions
-                createModels(config);
-                
-                // Show all UI elements
-                document.getElementById('coordinates').style.display = 'block';
-                document.getElementById('fpsCounter').style.display = 'block';
-                document.getElementById('updateCounter').style.display = 'block';
-                document.getElementById('controlPanel').style.display = 'block';
-                document.getElementById('cameraPanel').style.display = 'block';
-                document.getElementById('resetCamera').style.display = 'block';
-                
-                // Show guidance tuning panel
-                document.getElementById('guidanceTuningPanel').style.display = 'block';
-                
-                // Send initial guidance parameters
-                sendGuidanceParameters();
-                
-                // Hide config panel
-                document.getElementById('configPanel').style.display = 'none';
-                
-                // Start the animation loop if not already started
-                if (!animationStarted) {
-                    animationStarted = true;
-                    animate();
-                }
-            }
-            
-            // Request field boundary after configuration
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({type: 'getField'}));
-            }
-        }
-
-        document.getElementById('startSimulation').addEventListener('click', sendConfiguration);
-
         // Replace the ground plane creation with this tile-based system
         // 36°48'04.7"S 142°18'51.3"E
         const METERS_PER_TILE = 4.78 * 1000; // 4.78km at zoom level 13
@@ -586,23 +1064,55 @@
             return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
         }
 
-        function loadMapTile(x, y, zoom) {
-            const loader = new THREE.TextureLoader();
-            // Using OpenStreetMap tiles (you can replace with Mapbox or other providers)
-            const url = `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
+        // Function to calculate the center latitude of a tile
+        function tile2lat(y, z) {
+            const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+            return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+        }
+        
+        // Function to calculate the center longitude of a tile
+        function tile2lon(x, z) {
+            return x / Math.pow(2, z) * 360 - 180;
+        }
+
+        async function loadMapTile(layer, x, y, z, time) {
+            // open street map
+            const baseUrl = 'https://tile.openstreetmap.org';
+            const url = `${baseUrl}/${z}/${x}/${y}.png`;
+
+            try {
+                // Use ImageBitmapLoader instead of fetch + createImageBitmap
+                const loader = new THREE.ImageBitmapLoader();
+                // Set crossOrigin to Anonymous to avoid CORS issues
+                loader.setCrossOrigin('anonymous');
+                // Enable image bitmap creation
+                loader.setOptions({ imageOrientation: 'flipY' });
+                
+                return await loader.loadAsync(url);
+            } catch (error) {
+                console.error('Error loading map tile:', error);
+                throw error;
+            }
+        }
+
+        // Convert lat/lon to world coordinates
+        function latLonToWorld(lat, lon, centerLat, centerLon) {
+            // Earth radius in meters
+            const R = 6378137;
             
-            return new Promise((resolve) => {
-                loader.load(url, (texture) => {
-                    const geometry = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
-                    const material = new THREE.MeshBasicMaterial({ 
-                        map: texture,
-                        side: THREE.DoubleSide 
-                    });
-                    const tile = new THREE.Mesh(geometry, material);
-                    tile.rotation.x = -Math.PI / 2;
-                    resolve(tile);
-                });
-            });
+            // Convert to radians
+            const latRad = lat * Math.PI / 180;
+            const lonRad = lon * Math.PI / 180;
+            const centerLatRad = centerLat * Math.PI / 180;
+            const centerLonRad = centerLon * Math.PI / 180;
+            
+            // Calculate X position (East-West)
+            const x = R * (lonRad - centerLonRad) * Math.cos(centerLatRad);
+            
+            // Calculate Y position (North-South)
+            const y = R * (latRad - centerLatRad);
+            
+            return { x, y };
         }
 
         // Load initial tiles
@@ -610,28 +1120,198 @@
             const centerTileX = lon2tile(initialLon, zoom);
             const centerTileY = lat2tile(initialLat, zoom);
             
+            // Calculate the center latitude and longitude of the center tile
+            const centerTileLat = tile2lat(centerTileY + 0.5, zoom);
+            const centerTileLon = tile2lon(centerTileX + 0.5, zoom);
+            
+            // Calculate the world offset between the center tile and initial tractor position
+            const tileCenter = latLonToWorld(centerTileLat, centerTileLon, initialLat, initialLon);
+            const tileOffset = { x: tileCenter.x, y: tileCenter.y };
+            
+            console.log('Tile center lat/lon:', centerTileLat, centerTileLon);
+            console.log('Initial tractor lat/lon:', initialLat, initialLon);
+            console.log('Calculated tile offset:', tileOffset);
+            
             // Load 3x3 grid of tiles
             for (let i = -1; i <= 1; i++) {
                 for (let j = -1; j <= 1; j++) {
-                    const tile = await loadMapTile(centerTileX + i, centerTileY + j, zoom);
-                    tile.position.set(i * TILE_SIZE, 0, j * TILE_SIZE);
-                    scene.add(tile);
+                    const tileX = centerTileX + i;
+                    const tileY = centerTileY + j;
+                    
+                    // Convert to world coordinates relative to initial tractor position
+                    const tileWorldPos = {
+                        x: tileOffset.x + i * TILE_SIZE,
+                        y: tileOffset.y - j * TILE_SIZE // Flip Y coordinate j increases downwards
+                    };
+                    
+                    // Load tile image data using the ImageBitmapLoader
+                    try {
+                        const tileImage = await loadMapTile('s2_ls_combined', tileX, tileY, zoom, null);
+                        const tileTexture = new THREE.Texture(tileImage);
+                        
+                        // Image has already been flipped by the loader options
+                        tileTexture.needsUpdate = true;
+                        
+                        // Create tile mesh
+                        const tileGeometry = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+                        tileGeometry.attributes.uv.needsUpdate = true;
+                        
+                        const tileMaterial = new THREE.MeshBasicMaterial({ map: tileTexture });
+                        const tileMesh = new THREE.Mesh(tileGeometry, tileMaterial);
+                        
+                        // Position the tile at its calculated world position
+                        tileMesh.position.set(tileWorldPos.x, tileWorldPos.y, 0);
+                        
+                        scene.add(tileMesh);
+                        
+                        // Add red wireframe to show tile boundaries
+                        const edgesGeometry = new THREE.EdgesGeometry(tileGeometry);
+                        const edgesMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+                        const wireframe = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+                        wireframe.position.copy(tileMesh.position);
+                        wireframe.rotation.copy(tileMesh.rotation);
+                        wireframe.renderOrder = 1; // Ensure wireframe renders above the tile
+                        scene.add(wireframe);
+                    } catch (error) {
+                        console.error(`Failed to load tile at ${tileX},${tileY}:`, error);
+                    }
                 }
             }
+            
+            // Create grid of grey lines
+            createGrid();
+        }
+        
+        // Function to create a grid of grey lines
+        function createGrid() {
+            const gridSize = 5000; // 5km in each direction
+            const gridSpacing = 100; // 100m spacing
+            const gridColor = 0x888888; // Grey color
+            const gridOpacity = 0.6; // Semi-transparent
+            
+            // Create grid material
+            const gridMaterial = new THREE.LineBasicMaterial({ 
+                color: gridColor, 
+                transparent: true, 
+                opacity: gridOpacity,
+                depthWrite: false // Prevent z-fighting with ground
+            });
+            
+            // Create grid geometry
+            const gridGroup = new THREE.Group();
+            
+            // Create horizontal lines (along X axis)
+            for (let y = -gridSize; y <= gridSize; y += gridSpacing) {
+                const geometry = new THREE.BufferGeometry();
+                const vertices = [
+                    new THREE.Vector3(-gridSize, y, 0.1),
+                    new THREE.Vector3(gridSize, y, 0.1)
+                ];
+                geometry.setFromPoints(vertices);
+                const line = new THREE.Line(geometry, gridMaterial);
+                gridGroup.add(line);
+            }
+            
+            // Create vertical lines (along Y axis)
+            for (let x = -gridSize; x <= gridSize; x += gridSpacing) {
+                const geometry = new THREE.BufferGeometry();
+                const vertices = [
+                    new THREE.Vector3(x, -gridSize, 0.1),
+                    new THREE.Vector3(x, gridSize, 0.1)
+                ];
+                geometry.setFromPoints(vertices);
+                const line = new THREE.Line(geometry, gridMaterial);
+                gridGroup.add(line);
+            }
+            
+            // Add grid to scene
+            gridGroup.renderOrder = 1; // Ensure grid renders above ground
+            scene.add(gridGroup);
         }
 
         // Remove the old ground plane code and call loadInitialTiles
         loadInitialTiles();
 
-        // add an arrow to the scene pointing north
-        const arrowY = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 100, 0x00ff00);
-        scene.add(arrowY);
+        // Define global arrow variables
+        let arrowX, arrowY, arrowZ;
+        
+        // Function to scale coordinate arrows based on camera height
+        function updateArrowScale() {
+            if (!camera) return;
+            
+            // Calculate distance from camera to origin
+            const cameraDistance = camera.position.length();
+            
+            // Base length - adjust these values to change the relative size
+            const baseLength = cameraDistance * 0.15; // 15% of camera distance
+            const baseHeadLength = baseLength * 0.1;  // 10% of arrow length
+            const baseHeadWidth = baseHeadLength * 0.6; // 60% of head length
+            
+            // Set minimum and maximum sizes to prevent arrows from becoming too small or too large
+            const minLength = 50;
+            const maxLength = 2000;
+            const arrowLength = THREE.MathUtils.clamp(baseLength, minLength, maxLength);
+            const headLength = THREE.MathUtils.clamp(baseHeadLength, minLength * 0.1, maxLength * 0.1);
+            const headWidth = THREE.MathUtils.clamp(baseHeadWidth, minLength * 0.06, maxLength * 0.06);
+            
+            // Update each arrow
+            if (arrowX) {
+                arrowX.setLength(arrowLength, headLength, headWidth);
+            }
+            if (arrowY) {
+                arrowY.setLength(arrowLength, headLength, headWidth);
+            }
+            if (arrowZ) {
+                arrowZ.setLength(arrowLength, headLength, headWidth);
+            }
+        }
+        
+        // Create and add coordinate system arrows (ENU - East North Up)
+        function createCoordinateAxes() {
+            // X axis - East (Red)
+            arrowX = new THREE.ArrowHelper(
+                new THREE.Vector3(1, 0, 0),
+                new THREE.Vector3(0, 0, 0),
+                150, // length
+                0xff0000, // red
+                15, // head length
+                10 // head width
+            );
+            scene.add(arrowX);
 
-        const arrowX = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 100, 0xff0000);
-        scene.add(arrowX);
+            // Y axis - North (Green)
+            arrowY = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(0, 0, 0),
+                150, // length
+                0x00ff00, // green
+                15, // head length
+                10 // head width
+            );
+            scene.add(arrowY);
 
-        const arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), 100, 0x0000ff);
-        scene.add(arrowZ);
+            // Z axis - Up (Blue)
+            arrowZ = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 0, 1),
+                new THREE.Vector3(0, 0, 0),
+                150, // length
+                0x0000ff, // blue
+                15, // head length
+                10 // head width
+            );
+            scene.add(arrowZ);
+        }
+        
+        // Create the coordinate axes
+        createCoordinateAxes();
+        
+        // Store arrows in an array for easier access
+        const coordinateArrows = [arrowX, arrowY, arrowZ];
+        
+        // Now that arrows are created, add event listeners for camera changes
+        controls.addEventListener('change', updateArrowScale);
+        // Initial scale update
+        updateArrowScale();
 
         // Add after scene initialization and before tractor model creation
         // Create line for tractor path
@@ -679,6 +1359,20 @@
         fieldBoundary.frustumCulled = false;
         scene.add(fieldBoundary);
 
+        // Create inner boundary line
+        const innerBoundaryPoints = [];
+        const innerBoundaryGeometry = new THREE.BufferGeometry();
+        const innerBoundaryMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ff00, // green
+            linewidth: 2,
+            side: THREE.DoubleSide
+        });
+        const innerBoundary = new THREE.Line(innerBoundaryGeometry, innerBoundaryMaterial);
+        innerBoundary.renderOrder = 1;
+        innerBoundary.material.depthTest = false;
+        innerBoundary.frustumCulled = false;
+        scene.add(innerBoundary);
+
         // Create AB line path
         const abPathPoints = [];
         const abPathGeometry = new THREE.BufferGeometry();
@@ -693,21 +1387,76 @@
         abPath.frustumCulled = false;
         scene.add(abPath);
 
+        // Create start marker (green triangle)
+        const startMarkerGeometry = new THREE.BufferGeometry();
+        const startMarkerVertices = new Float32Array([
+            0, 1, 0,    // top
+            -0.866, -0.5, 0,  // bottom left
+            0.866, -0.5, 0    // bottom right
+        ]);
+        startMarkerGeometry.setAttribute('position', new THREE.BufferAttribute(startMarkerVertices, 3));
+        const startMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
+        const startMarker = new THREE.Mesh(startMarkerGeometry, startMarkerMaterial);
+        startMarker.scale.set(2, 2, 2);
+        scene.add(startMarker);
+
+        // Create end marker (red square)
+        const endMarkerGeometry = new THREE.PlaneGeometry(2, 2);
+        const endMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
+        const endMarker = new THREE.Mesh(endMarkerGeometry, endMarkerMaterial);
+        scene.add(endMarker);
+
+        // Create collection for coverage lines
+        const coverageLines = [];
+        const coverageLineMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xff69b4, // pink
+            linewidth: 2,
+            side: THREE.DoubleSide
+        });
+
+        // Function to add new coverage line
+        function addCoverageLine(points) {
+            // Remove oldest line if we've reached the limit
+            if (coverageLines.length >= 1000) {
+                const oldestLine = coverageLines.shift(); // Remove first (oldest) line
+                scene.remove(oldestLine); // Remove from scene
+                oldestLine.geometry.dispose(); // Clean up geometry
+                oldestLine.material.dispose(); // Clean up material
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            const vertices = points.map(p => new THREE.Vector3(p.X, p.Y, 0.1));
+            geometry.setFromPoints(vertices);
+            
+            const line = new THREE.Line(geometry, coverageLineMaterial);
+            line.renderOrder = 1;
+            line.material.depthTest = false;
+            line.frustumCulled = false;
+            
+            coverageLines.push(line);
+            scene.add(line);
+        }
+
         // Add after scene initialization
         let currentCameraView = 'thirdPerson'; // Global variable for camera view
         
         // Camera position constants
-        const THIRD_PERSON_OFFSET = new THREE.Vector3(0, 10, -20);
-        const FIRST_PERSON_OFFSET = new THREE.Vector3(0, 2, 0);
+        const THIRD_PERSON_OFFSET = new THREE.Vector3(-20, 0, 10);
+        const FIRST_PERSON_OFFSET = new THREE.Vector3(0, 0, 2);
+        const BIRDS_EYE_HEIGHT = 50; // Default height for birds-eye view
+        let birdsEyeHeight = BIRDS_EYE_HEIGHT; // Variable height that can be adjusted
         
         // Update camera position based on view mode
         function updateCameraPosition() {
             if (!tractor) return; // Don't update camera if tractor doesn't exist yet
             
+            // Always ensure camera up vector is aligned with z-axis (up in ENU)
+            camera.up.set(0, 0, 1);
+            
             if (currentCameraView === 'thirdPerson') {
                 // Position camera behind tractor
                 const offset = THIRD_PERSON_OFFSET.clone();
-                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), tractor.rotation.y);
+                offset.applyAxisAngle(new THREE.Vector3(0, 0, 1), tractor.rotation.z);
                 camera.position.copy(tractor.position).add(offset);
                 controls.target.copy(tractor.position);
             } else if (currentCameraView === 'follow') {
@@ -716,13 +1465,25 @@
             } else if (currentCameraView === 'firstPerson') {
                 // Position camera at tractor's position
                 const offset = FIRST_PERSON_OFFSET.clone();
-                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), tractor.rotation.y-Math.PI/2);
+                offset.applyAxisAngle(new THREE.Vector3(0, 0, 1), tractor.rotation.z-Math.PI/2);
                 camera.position.copy(tractor.position).add(offset);
                 
                 // Look in the direction the tractor is facing
-                const lookAtOffset = new THREE.Vector3(10, 2, 0);
-                lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), tractor.rotation.y-Math.PI/2);
+                const lookAtOffset = new THREE.Vector3(10, 0, 2);
+                lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 0, 1), tractor.rotation.z-Math.PI/2);
                 controls.target.copy(tractor.position).add(lookAtOffset);
+            } else if (currentCameraView === 'birdsEye') {
+                // Position camera directly above tractor with adjustable height
+                camera.position.copy(tractor.position).add(new THREE.Vector3(0, 0, birdsEyeHeight));
+                
+                // Look down at tractor and orient camera with tractor heading
+                controls.target.copy(tractor.position);
+                
+                // For birds-eye view, we need to adjust the up vector based on the tractor's heading
+                // This makes the camera rotate to match the tractor's forward direction
+                const tractorHeading = -tractor.rotation.z+Math.PI/2;
+                // Up vector is in the XY plane, perpendicular to the direction of travel
+                camera.up.set(Math.sin(tractorHeading), Math.cos(tractorHeading), 0);
             }
         }
 
@@ -742,11 +1503,37 @@
             updateButtonStates();
         });
 
+        document.getElementById('birdsEyeView').addEventListener('click', () => {
+            currentCameraView = 'birdsEye';
+            updateButtonStates();
+        });
+        
+        // Add mouse wheel zoom for birds-eye view
+        renderer.domElement.addEventListener('wheel', function(event) {
+            if (currentCameraView === 'birdsEye') {
+                // Prevent the default scroll behavior
+                event.preventDefault();
+                
+                // Determine zoom direction (in or out)
+                const zoomSpeed = 2; // Adjust for faster/slower zoom
+                // make zoom speed logarithmic to the birds eye height
+                const delta = Math.sign(event.deltaY) * zoomSpeed * Math.log10(birdsEyeHeight);
+                
+                // Update birds-eye height
+                birdsEyeHeight = Math.max(10, Math.min(2000, birdsEyeHeight + delta));
+                
+            }
+        }, { passive: false });
+
         function updateButtonStates() {
             document.querySelectorAll('.camera-button').forEach(button => {
                 button.classList.remove('active');
             });
             document.getElementById(`${currentCameraView}View`).classList.add('active');
+            
+            // Show or hide height control based on selected view
+            document.getElementById('birdsEyeHeightControl').style.display = 
+                currentCameraView === 'birdsEye' ? 'block' : 'none';
         }
 
         // Add these variables near the start of the script section, after scene initialization
@@ -801,6 +1588,9 @@
                 controls.update();
                 updateCoordinates();
             }
+            
+            // Update arrow scale based on camera position
+            updateArrowScale();
             
             renderer.render(scene, camera);
         }
@@ -893,7 +1683,10 @@
                 const config = {
                     type: 'calculatePath',
                     config: {
-                        implementWidth: parseFloat(document.getElementById('implementWidth').value)
+                        // check for implementWidth in settings.implement otherwise get from settings element
+                        implementWidth: function() {
+                            return settings.implement.width || parseFloat(document.getElementById('settings-implementWidth').value);
+                        }
                     }
                 };
                 ws.send(JSON.stringify(config));
@@ -941,6 +1734,153 @@
             const value = parseFloat(deadzoneControl.value);
             deadzoneValue.textContent = `${value.toFixed(1)}°`;
             sendGuidanceParameters();
+        });
+
+        // Add settings panel functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const settingsPanel = document.getElementById('settingsPanel');
+            const openSettingsButton = document.getElementById('openSettings');
+            const closeSettingsButton = document.getElementById('closeSettingsX');
+            const cancelSettingsButton = document.getElementById('closeSettings');
+            const saveSettingsButton = document.getElementById('saveSettings');
+            const categoryButtons = document.querySelectorAll('.settings-category');
+            const categoryContents = document.querySelectorAll('.settings-category-content');
+
+            // Load settings from cookies on page load
+            loadSettingsFromCookies();
+
+            // Make a copy of current settings when opening panel
+            let originalSettings = {};
+            
+            // Open settings panel
+            openSettingsButton.addEventListener('click', function() {
+                // Make a backup of current settings
+                originalSettings = {
+                    tractor: {
+                        wheelbase: parseFloat(document.getElementById('settings-wheelbase').value),
+                        hitchOffset: parseFloat(document.getElementById('settings-hitchOffset').value)
+                    },
+                    implement: {
+                        length: parseFloat(document.getElementById('settings-implementLength').value),
+                        width: parseFloat(document.getElementById('settings-implementWidth').value)
+                    },
+                    guidance: {
+                        lookAhead: parseFloat(document.getElementById('lookAheadControl').value),
+                        planningDistance: parseFloat(document.getElementById('planningDistControl').value),
+                        deadzone: parseFloat(document.getElementById('deadzoneControl').value)
+                    }
+                };
+                
+                // Sync settings with current values
+                syncSettings();
+                
+                // Show panel
+                settingsPanel.style.display = 'flex';
+            });
+
+            // Close settings panel without saving (cancel)
+            cancelSettingsButton.addEventListener('click', function() {
+                // Restore original values
+                if (originalSettings.tractor) {
+                    document.getElementById('settings-wheelbase').value = originalSettings.tractor.wheelbase;
+                    document.getElementById('settings-hitchOffset').value = originalSettings.tractor.hitchOffset;
+                }
+                
+                if (originalSettings.implement) {
+                    document.getElementById('settings-implementLength').value = originalSettings.implement.length;
+                    document.getElementById('settings-implementWidth').value = originalSettings.implement.width;
+                }
+                
+                if (originalSettings.guidance) {
+                    document.getElementById('lookAheadControl').value = originalSettings.guidance.lookAhead;
+                    lookAheadValue.textContent = originalSettings.guidance.lookAhead;
+                    
+                    document.getElementById('planningDistControl').value = originalSettings.guidance.planningDistance;
+                    planningDistValue.textContent = originalSettings.guidance.planningDistance;
+                    
+                    document.getElementById('deadzoneControl').value = originalSettings.guidance.deadzone;
+                    deadzoneValue.textContent = originalSettings.guidance.deadzone + '°';
+                    
+                    // Update guidance parameters
+                    sendGuidanceParameters();
+                }
+                
+                settingsPanel.style.display = 'none';
+            });
+
+            // Close settings panel (X button)
+            closeSettingsButton.addEventListener('click', function() {
+                // Same as cancel - don't save changes
+                cancelSettingsButton.click();
+            });
+            
+            // Save settings and close panel
+            saveSettingsButton.addEventListener('click', function() {
+                // Apply settings to form controls
+
+                document.getElementById('lookAheadControl').value = document.getElementById('settings-lookAhead').value;
+                lookAheadValue.textContent = document.getElementById('settings-lookAhead').value;
+                document.getElementById('planningDistControl').value = document.getElementById('settings-planningDistance').value;
+                planningDistValue.textContent = document.getElementById('settings-planningDistance').value;
+                document.getElementById('deadzoneControl').value = document.getElementById('settings-deadzone').value;
+                deadzoneValue.textContent = document.getElementById('settings-deadzone').value + '°';
+                
+                // Save to cookies
+                saveSettingsToCookies();
+                
+                // Update guidance parameters
+                sendGuidanceParameters();
+                
+                // Close panel
+                settingsPanel.style.display = 'none';
+                
+                // Send updated configuration to server if needed
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    const config = {
+                        type: 'config',
+                        tractor: {
+                            wheelbase: parseFloat(document.getElementById('settings-wheelbase').value),
+                            hitchOffset: parseFloat(document.getElementById('settings-hitchOffset').value)
+                        },
+                        implement: {
+                            length: parseFloat(document.getElementById('settings-implementLength').value),
+                            width: parseFloat(document.getElementById('settings-implementWidth').value)
+                        }
+                    };
+                    ws.send(JSON.stringify(config));
+                }
+            });
+
+            // Handle category selection
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    categoryButtons.forEach(btn => btn.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Hide all category contents
+                    categoryContents.forEach(content => content.style.display = 'none');
+                    // Show selected category content
+                    const category = this.getAttribute('data-category');
+                    document.getElementById(`${category}-settings`).style.display = 'block';
+                });
+            });
+
+            // Sync settings with existing controls
+            function syncSettings() {
+               
+                // GPS settings
+                document.getElementById('settings-gpsLat').value = tractorPosition?.lat || -36.8013;
+                document.getElementById('settings-gpsLon').value = tractorPosition?.lon || 142.3142;
+                
+                // Planner settings
+                document.getElementById('settings-planningDistance').value = document.getElementById('planningDistControl').value;
+                
+                // Guidance settings
+                document.getElementById('settings-lookAhead').value = document.getElementById('lookAheadControl').value;
+                document.getElementById('settings-deadzone').value = document.getElementById('deadzoneControl').value;
+            }
         });
     </script>
 </body>

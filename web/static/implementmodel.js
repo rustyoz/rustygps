@@ -6,19 +6,19 @@ function implementModel(width, length) {
 
     
     // Main hitch beam (center beam that connects to tractor)
-    const hitchGeometry = new THREE.BoxGeometry(0.2, 0.2, length);
+    const hitchGeometry = new THREE.BoxGeometry(length, 0.2, 0.2);
     const hitchMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 }); // Gray
     const hitchBeam = new THREE.Mesh(hitchGeometry, hitchMaterial);
     hitchBeam.name = 'implement-hitch';
-    hitchBeam.position.set(0, 0.5, length/2);
+    hitchBeam.position.set(length/2, 0, 0.5);
     implementGroup.add(hitchBeam);
 
     // Main toolbar (perpendicular beam that holds the wheels)
-    const toolbarGeometry = new THREE.BoxGeometry(width, 0.2, 2);
+    const toolbarGeometry = new THREE.BoxGeometry(2, width, 0.2);
     const toolbarMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 }); // Gray
     const toolbar = new THREE.Mesh(toolbarGeometry, toolbarMaterial);
     toolbar.name = 'implement-toolbar';
-    toolbar.position.set(0, 0.5, 0); // Now at the back end of the implement
+    toolbar.position.set(0, 0, 0.5); // Now at the back end of the implement
     implementGroup.add(toolbar);
 
     // Wheel dimensions
@@ -32,15 +32,15 @@ function implementModel(width, length) {
     // Create and position left wheel
     const leftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
     leftWheel.name = 'implement-left-wheel';
-    leftWheel.position.set(-width/2 + 0.1, wheelRadius, 0); // Aligned with toolbar, slight offset from edge
-    leftWheel.rotation.z = Math.PI / 2;
+    leftWheel.position.set(0, -width/2 + 0.1, wheelRadius); // Aligned with toolbar, slight offset from edge
+    leftWheel.rotation.x = Math.PI / 2;
     implementGroup.add(leftWheel);
 
     // Create and position right wheel
     const rightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
     rightWheel.name = 'implement-right-wheel';
-    rightWheel.position.set(width/2 - 0.1, wheelRadius, 0); // Aligned with toolbar, slight offset from edge
-    rightWheel.rotation.z = Math.PI / 2;
+    rightWheel.position.set(0, width/2 - 0.1, wheelRadius); // Aligned with toolbar, slight offset from edge
+    rightWheel.rotation.x = Math.PI / 2;
     implementGroup.add(rightWheel);
 
     // create outer group to hold implement
@@ -49,7 +49,7 @@ function implementModel(width, length) {
     implementOuterGroup.add(implementGroup);
 
     // move implement to the left
-    implementGroup.position.set(0, 0, -length);
+    implementGroup.position.set(-length, 0, 0);
 
     return implementOuterGroup;
 } 

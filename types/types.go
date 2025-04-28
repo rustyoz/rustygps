@@ -25,6 +25,11 @@ type WorldPosition struct {
 	Heading float64 `json:"Heading"` // radians, 0 = east, clockwise positive
 }
 
+type Vector struct {
+	X float64 `json:"X"` // meters east from origin
+	Y float64 `json:"Y"` // meters north from origin
+}
+
 // CoordinateSystem defines the transformation between world and GPS coordinates
 type CoordinateSystem struct {
 	OriginLat float64 `json:"OriginLat"` // latitude of world origin (0,0)

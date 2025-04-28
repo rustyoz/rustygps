@@ -33,19 +33,19 @@ func NewCoordinateSystem(originLat, originLon float64) *types.CoordinateSystem {
 
 // Tractor represents the physical properties and state of the tractor
 type Tractor struct {
-	WheelBase            float64                 // Length between front and rear axles in meters
-	SteeringAngle        float64                 // Current steering angle in radians
-	SteeringType         types.TractorType       // Type of steering mechanism
-	SteeringAngleDesired float64                 // target steering angle in radians
-	SteeringAngleLimit   float64                 // maximum steering angle in radians
-	Speed                float64                 // Current speed in meters per second
-	Position             types.Position          // Current GPS position
-	WorldPos             types.WorldPosition     // Tractor Position in world coordinates (centre on rear axle)
-	CoordSys             *types.CoordinateSystem // Coordinatge system for transformations
-	HitchOffset          float64                 // Distance from hitch point in meters
-	HitchPos             types.WorldPosition     // Position of hitch point in world coordinates
-	Throttle             float64                 // Throttle position (0-1)
-	mu                   sync.RWMutex
+	WheelBase            float64                 `json:"wheelBase"`            // Length between front and rear axles in meters
+	SteeringAngle        float64                 `json:"steeringAngle"`        // Current steering angle in radians
+	SteeringType         types.TractorType       `json:"steeringType"`         // Type of steering mechanism
+	SteeringAngleDesired float64                 `json:"steeringAngleDesired"` // target steering angle in radians
+	SteeringAngleLimit   float64                 `json:"steeringAngleLimit"`   // maximum steering angle in radians
+	Speed                float64                 `json:"speed"`                // Current speed in meters per second
+	Position             types.Position          `json:"position"`             // Current GPS position
+	WorldPos             types.WorldPosition     `json:"worldPos"`             // Tractor Position in world coordinates (centre on rear axle)
+	CoordSys             *types.CoordinateSystem `json:"coordSys"`             // Coordinatge system for transformations
+	HitchOffset          float64                 `json:"hitchOffset"`          // Distance from hitch point in meters
+	HitchPos             types.WorldPosition     `json:"hitchPos"`             // Position of hitch point in world coordinates
+	Throttle             float64                 `json:"throttle"`             // Throttle position (0-1)
+	mu                   sync.RWMutex            // Mutex does not need json serialization
 }
 
 // NewTractor creates a new tractor with default values
