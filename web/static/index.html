@@ -837,6 +837,14 @@
                             0.1
                         );
                     }
+
+                    if (data.controlPoints) {
+                        controlPathPoints.length = 0;
+                        data.controlPoints.forEach(point => {
+                            controlPathPoints.push(new THREE.Vector3(point.X, point.Y, 0.1));
+                        });
+                        controlPathGeometry.setFromPoints(controlPathPoints);
+                    }
                 } else if (data.type === 'guidance') {
                     // Update guidance arrow direction
                     if (tractor) {
@@ -1418,6 +1426,19 @@
         const abPathPoints = [];
         const abPathGroup = new THREE.Group(); // Create a group to hold colored segments
         scene.add(abPathGroup);
+
+        const controlPathPoints = [];
+        const controlPathGeometry = new THREE.BufferGeometry();
+        const controlPathMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xff0000, // red
+            linewidth: 2,  // Note: linewidth only works in WebGLRenderer2
+            side: THREE.DoubleSide
+        });
+        const controlPath = new THREE.Line(controlPathGeometry, controlPathMaterial);
+        controlPath.renderOrder = 1; // Ensure path renders above ground
+        controlPath.material.depthTest = false; // Prevent z-fighting with ground
+        controlPath.frustumCulled = false;
+        scene.add(controlPath);
 
         // Create start marker (green triangle)
         const startMarkerGeometry = new THREE.BufferGeometry();

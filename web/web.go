@@ -128,7 +128,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			path, err := thePlanner.GeneratePath(&theField, theTractor, theImplement)
+			path, controlPath, err := thePlanner.GeneratePath(&theField, theTractor, theImplement)
 			thePath = path
 			if err != nil {
 				fmt.Println("error generating path", err)
@@ -136,8 +136,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 			response := map[string]interface{}{
-				"type":   "path",
-				"points": path,
+				"type":          "path",
+				"points":        path,
+				"controlPoints": controlPath,
 			}
 			data, err := json.Marshal(response)
 			if err != nil {
@@ -176,7 +177,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			theImplement.Reset()
 
 			// Recalculate pathreset
-			path, err := thePlanner.GeneratePath(&theField, theTractor, theImplement)
+			path, controlPath, err := thePlanner.GeneratePath(&theField, theTractor, theImplement)
 			if err != nil {
 				fmt.Println("error generating path during reset:", err)
 				continue
@@ -190,8 +191,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 			// Send updated path to client
 			response := map[string]interface{}{
-				"type":   "path",
-				"points": path,
+				"type":          "path",
+				"points":        path,
+				"controlPoints": controlPath,
 			}
 			data, err := json.Marshal(response)
 			if err != nil {

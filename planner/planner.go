@@ -434,7 +434,7 @@ func GenerateHeadlandCurve(previousPoint Point, start Point, end Point, interval
 	return points
 }
 
-func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, intervalDistance float64, headlandOffset float64) []Point {
+func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, intervalDistance float64, headlandOffset float64) ([]Point, []Point) {
 
 	startVector := PointToVector(start)
 	endVector := PointToVector(end)
@@ -461,6 +461,8 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 		startVector,
 		startVector.Add(vector.SetLength(headlandOffset / 3)),
 		//startVector.Add(vector.SetLength(headlandOffset)).Add(perpVector.SetLength(3).Reverse()),
+		startVector.Add(vector.SetLength(headlandOffset)),
+
 		startVector.Add(vector.SetLength(headlandOffset)).Add(turnVector.SetLength(headlandOffset / 2)),
 
 		//startVector.Add(perpVector.SetLength(projection / 2)).Add(vector.SetLength(headlandOffset)),
@@ -480,7 +482,7 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 		ControlPoints: VectorsToPoints(vectors),
 	}
 
-	return bezierCurve.GeneratePoints(100)
+	return bezierCurve.GeneratePoints(100), bezierCurve.ControlPoints
 }
 
 // CalculateThreeArcCenters calculates the centers of three arcs for a smooth headland turn
@@ -601,12 +603,12 @@ func DetermineSideOfABLine(abLine ABLine, point Point) int {
 }
 
 // GeneratePath implements the PathPlanner interface for AB line planning
-func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, error) {
+func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, []Point, error) {
 
 	fmt.Printf("Generating path: Implement width: %.1f\n", implement.WorkingWidth)
 
 	if implement.WorkingWidth <= 0 {
-		return nil, errors.New("implement width must be positive")
+		return nil, nil, errors.New("implement width must be positive")
 	}
 
 	field.WorkingArea = GenerateInnerBoundary(field.Boundary, implement.WorkingWidth)
@@ -628,7 +630,7 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 	length := math.Sqrt(dx*dx + dy*dy)
 
 	if length == 0 {
-		return nil, errors.New("invalid AB line: points A and B are the same")
+		return nil, nil, errors.New("invalid AB line: points A and B are the same")
 	}
 
 	// Normalize direction vector
@@ -741,12 +743,12 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 
 	path = ClipPath(path, field.WorkingArea)
 
-	pathHeadlands, err := GenerateHeadlandPath(path, field, tractor, implement)
+	pathHeadlands, controlPoints, err := GenerateHeadlandPath(path, field, tractor, implement)
 	if err != nil {
-		return path, err
+		return path, nil, err
 	}
 
-	return pathHeadlands, nil
+	return pathHeadlands, controlPoints, nil
 }
 
 func ClipPath(path []Point, boundary []Point) []Point {
@@ -816,7 +818,7 @@ func RemoveDuplicatePoints(path []Point) []Point {
 	return newPoints
 }
 
-func GenerateHeadlandPath(path []Point, field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, error) {
+func GenerateHeadlandPath(path []Point, field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, []Point, error) {
 
 	// clip path
 	//path := ClipPath(path, field.WorkingArea)
@@ -835,18 +837,20 @@ func GenerateHeadlandPath(path []Point, field *Field, tractor *tractor.Tractor, 
 	//}
 
 	headlandPath := []Point{}
+	controlPath := []Point{}
 	// scan clip path point by point
 	headlandPath = append(headlandPath, clippedPath[0])
 	for i := 1; i < len(clippedPath); i++ {
 		if clippedPath[i-1].End {
-			headlandCurve := GenerateHeadlandBezierCurve(clippedPath[i-2], clippedPath[i-1], clippedPath[i], 0.5, implement.WorkingWidth)
+			headlandCurve, controlPoints := GenerateHeadlandBezierCurve(clippedPath[i-2], clippedPath[i-1], clippedPath[i], 0.5, implement.WorkingWidth)
 			headlandPath = append(headlandPath, headlandCurve...)
+			controlPath = append(controlPath, controlPoints...)
 
 		}
 		headlandPath = append(headlandPath, clippedPath[i])
 	}
 
-	return headlandPath, nil
+	return headlandPath, controlPath, nil
 }
 
 func IntersectBoundary(boundary []Point, insidePoint Point, outsidePoint Point) (bool, *Point) {
