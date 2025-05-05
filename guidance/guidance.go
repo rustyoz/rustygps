@@ -85,32 +85,6 @@ func (g *Guidance) CalculateSteeringAngle(targetPoint planner.Point) float64 {
 	return g.calculatePurePursuitAngle(g.TractorState, targetPoint, g.GuidanceConfig.MaxSteeringAngle, g.GuidanceConfig.Deadzone)
 }
 
-// findLookAheadPoint finds a point on the path that is approximately lookAheadDist away
-func findLookAheadPoint(state TractorState, path []planner.Point, lookAheadDist float64) planner.Point {
-	closestIdx := 0
-	minDist := math.Inf(1)
-
-	// Find the closest point on the path
-	for i, point := range path {
-		dist := distance(state.WorldPos.X, state.WorldPos.Y, point.X, point.Y)
-		if dist < minDist {
-			minDist = dist
-			closestIdx = i
-		}
-	}
-
-	// Look ahead from the closest point
-	for i := closestIdx; i < len(path); i++ {
-		dist := distance(state.WorldPos.X, state.WorldPos.Y, path[i].X, path[i].Y)
-		if dist >= lookAheadDist {
-			return path[i]
-		}
-	}
-
-	// If we can't find a point far enough ahead, use the last point
-	return path[len(path)-1]
-}
-
 // follow the path and return the next point to follow based on whether it has visited the point.
 // once the tractor has been within 1m distance of the point, mark it as visited and return the next point
 var lastVisitedPointIndex int = 0
@@ -138,6 +112,15 @@ func (g *Guidance) GetTargetPoint() planner.Point {
 			return (*g.Path)[i]
 		}
 	}
+
+	if lastVisitedPointIndex == len(*g.Path) {
+		lastVisitedPointIndex = 0
+		if len(*g.Path) > 0 {
+			g.TargetPoint = (*g.Path)[0]
+		}
+		return g.TargetPoint
+	}
+
 	return g.TargetPoint
 }
 
@@ -146,8 +129,6 @@ func (g *Guidance) calculatePurePursuitAngle(state TractorState, target planner.
 	// Calculate relative position of target in tractor's coordinate frame
 	dx := target.X - state.WorldPos.X
 	dy := target.Y - state.WorldPos.Y
-
-	//fmt.Println("dx:", dx, "dy:", dy)
 
 	// Convert to tractor's local coordinate frame
 	localX := dx*math.Cos(-state.WorldPos.Heading) - dy*math.Sin(-state.WorldPos.Heading)
@@ -161,12 +142,9 @@ func (g *Guidance) calculatePurePursuitAngle(state TractorState, target planner.
 	// calculate heading in local frame
 	localHeading := math.Atan2(localY, localX)
 
-	//fmt.Println("localX:", localX, "localY:", localY, "localHeading:", localHeading)
 	// Calculate curvature (inverse of turning radius)
 	curvature := (2 * localY) / (localX*localX + localY*localY)
-	//fmt.Println("curvature:", curvature)
 
-	//	fmt.Println("maxSteeringAngle:", maxSteeringAngle)
 	// Convert curvature to steering angle
 	steeringAngle := math.Atan(curvature)
 
@@ -178,24 +156,23 @@ func (g *Guidance) calculatePurePursuitAngle(state TractorState, target planner.
 	// if the target point is behind the tractor, return the max steering angle
 	if localX < 0 {
 		if localY > 0 {
-			steeringAngle = maxSteeringAngle
-		} else {
-			steeringAngle = -maxSteeringAngle
+			return maxSteeringAngle
 		}
+		return -maxSteeringAngle
 	}
 
 	// if the heading is larger than the max steering angle, return the max steering angle
 	if localHeading > maxSteeringAngle {
-		steeringAngle = maxSteeringAngle
+		return maxSteeringAngle
 	} else if localHeading < -maxSteeringAngle {
-		steeringAngle = -maxSteeringAngle
+		return -maxSteeringAngle
 	}
 
 	// Apply steering limits
 	if steeringAngle > maxSteeringAngle {
-		steeringAngle = maxSteeringAngle
+		return maxSteeringAngle
 	} else if steeringAngle < -maxSteeringAngle {
-		steeringAngle = -maxSteeringAngle
+		return -maxSteeringAngle
 	}
 
 	// apply deadzone
@@ -203,7 +180,6 @@ func (g *Guidance) calculatePurePursuitAngle(state TractorState, target planner.
 		return 0
 	}
 
-	//fmt.Println("Steering angle:", steeringAngle)
 	return steeringAngle
 }
 

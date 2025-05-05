@@ -53,10 +53,10 @@ func TestVecOperations(t *testing.T) {
 
 func TestIntersect(t *testing.T) {
 	// Test intersection of two perpendicular lines
-	line1 := [2]Point{{X: 0, Y: 0}, {X: 10, Y: 0}}
-	line2 := [2]Point{{X: 5, Y: -5}, {X: 5, Y: 5}}
+	line1 := [2]Point{{X: 0, Y: 5}, {X: 10, Y: 5}}
+	line2 := [2]Point{{X: 5, Y: 0}, {X: 5, Y: 10}}
 	intersection := intersect(line1, line2)
-	if intersection.X != 5 || intersection.Y != 0 {
+	if intersection.X != 5 || intersection.Y != 5 {
 		t.Errorf("intersect() = {%f, %f}; want {5, 0}", intersection.X, intersection.Y)
 	}
 
@@ -64,8 +64,8 @@ func TestIntersect(t *testing.T) {
 	line3 := [2]Point{{X: 0, Y: 0}, {X: 10, Y: 0}}
 	line4 := [2]Point{{X: 0, Y: 5}, {X: 10, Y: 5}}
 	parallelIntersection := intersect(line3, line4)
-	if parallelIntersection.X != 5 || parallelIntersection.Y != 0 {
-		t.Errorf("intersect() with parallel lines = {%f, %f}; want {5, 0}",
+	if parallelIntersection != nil {
+		t.Errorf("intersect() with parallel lines = {%f, %f}; want nil",
 			parallelIntersection.X, parallelIntersection.Y)
 	}
 }
@@ -75,8 +75,8 @@ func TestPolyIsCw(t *testing.T) {
 	clockwisePoly := []Point{
 		{X: 0, Y: 0},
 		{X: 10, Y: 0},
-		{X: 10, Y: 10},
-		{X: 0, Y: 10},
+		{X: 10, Y: -10},
+		{X: 0, Y: -10},
 	}
 	if !polyIsCw(clockwisePoly) {
 		t.Error("polyIsCw() with clockwise polygon = false; want true")
@@ -85,9 +85,9 @@ func TestPolyIsCw(t *testing.T) {
 	// Test counterclockwise polygon
 	counterclockwisePoly := []Point{
 		{X: 0, Y: 0},
-		{X: 0, Y: 10},
-		{X: 10, Y: 10},
 		{X: 10, Y: 0},
+		{X: 10, Y: 10},
+		{X: 0, Y: 10},
 	}
 	if polyIsCw(counterclockwisePoly) {
 		t.Error("polyIsCw() with counterclockwise polygon = true; want false")
@@ -150,5 +150,32 @@ func TestGenerateInnerBoundary(t *testing.T) {
 	if len(inner) != len(complex) {
 		t.Errorf("GenerateInnerBoundary() with complex shape returned %d points; want %d",
 			len(inner), len(complex))
+	}
+}
+
+func TestDirection(t *testing.T) {
+
+	a := Point{X: 0, Y: 0}
+	b := Point{X: 1, Y: 0}
+	c := Point{X: 1, Y: 1}
+	direction := Direction(a, b, c)
+	if direction != 1 {
+		t.Errorf("Left turn Direction(%v, %v, %v) = %d; want 1", a, b, c, direction)
+	}
+
+	a = Point{X: 0, Y: 1}
+	b = Point{X: 1, Y: 1}
+	c = Point{X: 1, Y: 0}
+	direction = Direction(a, b, c)
+	if direction != -1 {
+		t.Errorf("Right turn Direction(%v, %v, %v) = %d; want -1", a, b, c, direction)
+	}
+
+	a = Point{X: 0, Y: 0}
+	b = Point{X: 1, Y: 0}
+	c = Point{X: 2, Y: 0}
+	direction = Direction(a, b, c)
+	if direction != 0 {
+		t.Errorf("Straight Direction(%v, %v, %v) = %d; want 0", a, b, c, direction)
 	}
 }

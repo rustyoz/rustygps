@@ -426,7 +426,7 @@
         <div class="control-group">
             <label for="planningDistControl">Planning Distance (m)</label>
             <input type="range" id="planningDistControl" min="1.0" max="10.0" step="0.25" value="3.0">
-            <span id="planningDistValue" class="control-value">3.0</span>
+            <span id="planningDistValue" class="control-value">2.0</span>
         </div>
         <div class="control-group">
             <label for="deadzoneControl">Deadzone (degrees)</label>
@@ -505,7 +505,7 @@
                     <h3>Parameters</h3>
                     <div class="settings-item">
                         <label for="settings-lookAhead">Look-ahead Distance (m):</label>
-                        <input type="number" id="settings-lookAhead" value="1.0" step="0.1" min="0.1" max="10.0">
+                        <input type="number" id="settings-lookAhead" value="2.0" step="0.1" min="0.1" max="10.0">
                     </div>
                     <div class="settings-item">
                         <label for="settings-deadzone">Deadzone (degrees):</label>
@@ -620,10 +620,15 @@
         // Set the camera's up vector to align with the z-axis (up in ENU)
         camera.up.set(0, 0, 1);
         
-        // We'll add the event listener after the arrows are created
-        // controls.addEventListener('change', updateArrowScale);
-        // Initial scale update will be done after arrow creation
-        // updateArrowScale();
+        // Add event listener to detect user panning in birds eye view
+        controls.addEventListener('change', function() {
+            // Set panned flag if we're in birds eye view
+            if (currentCameraView === 'birdsEye') {
+                birdViewPanned = true;
+                controls.screenSpacePanning = true;
+            } 
+            updateArrowScale();
+        });
 
         // Add reset camera function
         function resetCamera() {
@@ -634,6 +639,8 @@
             if (tractor) {
                 controls.target.copy(tractor.position);
             }
+            // Reset birds eye view panned flag
+            birdViewPanned = false;
             // Update arrow scale after camera reset if arrows exist
             if (arrowX && arrowY && arrowZ) {
                 updateArrowScale();
@@ -764,13 +771,7 @@
                     }
                     innerBoundaryGeometry.setFromPoints(innerBoundaryPoints);
                     
-                    // Update AB line if provided
-                    if (data.abLine) {
-                        abPathPoints.length = 0;
-                        abPathPoints.push(new THREE.Vector3(data.abLine.PointA.X, data.abLine.PointA.Y, 0.1));
-                        abPathPoints.push(new THREE.Vector3(data.abLine.PointB.X, data.abLine.PointB.Y, 0.1));
-                        abPathGeometry.setFromPoints(abPathPoints);
-                    }
+                    
                     
                     // Request path calculation
                     requestPathCalculation();
@@ -778,10 +779,51 @@
                 else if (data.type === 'path') {
                     // Update AB line path
                     abPathPoints.length = 0;
-                    data.points.forEach(point => {
+                    
+                    // Remove existing line segments
+                    while (abPathGroup.children.length > 0) {
+                        const line = abPathGroup.children[0];
+                        abPathGroup.remove(line);
+                        line.geometry.dispose();
+                        line.material.dispose();
+                    }
+                    
+                    // Store points with their full data including color
+                    const pointsWithData = data.points;
+                    
+                    // Add points to the array for other uses
+                    pointsWithData.forEach(point => {
                         abPathPoints.push(new THREE.Vector3(point.X, point.Y, 0.1));
                     });
-                    abPathGeometry.setFromPoints(abPathPoints);
+                    
+                    // Create colored line segments between consecutive points
+                    for (let i = 1; i < pointsWithData.length; i++) {
+                        const previousPoint = pointsWithData[i-1];
+                        const currentPoint = pointsWithData[i];
+                        
+                        // Use specified color if available, otherwise use default purple
+                        const lineColor = currentPoint.Color ? 
+                            new THREE.Color(currentPoint.Color) : 
+                            new THREE.Color(0x800080); // Default purple
+                        
+                        const lineMaterial = new THREE.LineBasicMaterial({
+                            color: lineColor,
+                            linewidth: 2,
+                            side: THREE.DoubleSide
+                        });
+                        
+                        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                            new THREE.Vector3(previousPoint.X, previousPoint.Y, 0.1),
+                            new THREE.Vector3(currentPoint.X, currentPoint.Y, 0.1)
+                        ]);
+                        
+                        const line = new THREE.Line(lineGeometry, lineMaterial);
+                        line.renderOrder = 1;
+                        line.material.depthTest = false;
+                        line.frustumCulled = false;
+                        
+                        abPathGroup.add(line);
+                    }
                     
                     // Update markers if there are points
                     if (abPathPoints.length >= 2) {
@@ -831,7 +873,6 @@
                         // Reset path geometries
                         tractorPathGeometry.setFromPoints(tractorPathPoints);
                         implementPathGeometry.setFromPoints(implementPathPoints);
-                        abPathGeometry.setFromPoints(abPathPoints);
                         
                         // Send reset command to server
                         ws.send(JSON.stringify({type: 'reset'}));
@@ -1375,17 +1416,8 @@
 
         // Create AB line path
         const abPathPoints = [];
-        const abPathGeometry = new THREE.BufferGeometry();
-        const abPathMaterial = new THREE.LineBasicMaterial({ 
-            color: 0x800080, // purple
-            linewidth: 2,
-            side: THREE.DoubleSide
-        });
-        const abPath = new THREE.Line(abPathGeometry, abPathMaterial);
-        abPath.renderOrder = 1;
-        abPath.material.depthTest = false;
-        abPath.frustumCulled = false;
-        scene.add(abPath);
+        const abPathGroup = new THREE.Group(); // Create a group to hold colored segments
+        scene.add(abPathGroup);
 
         // Create start marker (green triangle)
         const startMarkerGeometry = new THREE.BufferGeometry();
@@ -1439,6 +1471,7 @@
 
         // Add after scene initialization
         let currentCameraView = 'thirdPerson'; // Global variable for camera view
+        let birdViewPanned = false; // Track if user has panned in birds eye view
         
         // Camera position constants
         const THIRD_PERSON_OFFSET = new THREE.Vector3(-20, 0, 10);
@@ -1473,38 +1506,50 @@
                 lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 0, 1), tractor.rotation.z-Math.PI/2);
                 controls.target.copy(tractor.position).add(lookAtOffset);
             } else if (currentCameraView === 'birdsEye') {
-                // Position camera directly above tractor with adjustable height
-                camera.position.copy(tractor.position).add(new THREE.Vector3(0, 0, birdsEyeHeight));
-                
-                // Look down at tractor and orient camera with tractor heading
-                controls.target.copy(tractor.position);
-                
-                // For birds-eye view, we need to adjust the up vector based on the tractor's heading
-                // This makes the camera rotate to match the tractor's forward direction
-                const tractorHeading = -tractor.rotation.z+Math.PI/2;
-                // Up vector is in the XY plane, perpendicular to the direction of travel
-                camera.up.set(Math.sin(tractorHeading), Math.cos(tractorHeading), 0);
+                // Only update position if user hasn't panned
+                if (!birdViewPanned) {
+                    // Position camera directly above tractor with adjustable height
+                    camera.position.copy(tractor.position).add(new THREE.Vector3(0, 0, birdsEyeHeight));
+                    
+                    // Look down at tractor
+                    controls.target.copy(tractor.position);
+                    
+                    // For birds-eye view, orient camera with tractor heading
+                    const tractorHeading = -tractor.rotation.z+Math.PI/2;
+                    // Up vector is in the XY plane, perpendicular to the direction of travel
+                    camera.up.set(Math.sin(tractorHeading), Math.cos(tractorHeading), 0);
+                }
             }
         }
 
         // Add camera view button handlers
         document.getElementById('thirdPersonView').addEventListener('click', () => {
             currentCameraView = 'thirdPerson';
+            controls.mouseButtons = { LEFT: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+            
             updateButtonStates();
         });
 
         document.getElementById('followView').addEventListener('click', () => {
             currentCameraView = 'follow';
+            controls.mouseButtons = { LEFT: 0, RIGHT: 2 };
+            
             updateButtonStates();
         });
 
         document.getElementById('firstPersonView').addEventListener('click', () => {
             currentCameraView = 'firstPerson';
+            controls.mouseButtons = { LEFT: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+            
             updateButtonStates();
         });
 
         document.getElementById('birdsEyeView').addEventListener('click', () => {
             currentCameraView = 'birdsEye';
+
+            controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.DOLLY_ROTATE };
+            // Reset the panned flag to center on tractor when button is clicked
+            birdViewPanned = false;
             updateButtonStates();
         });
         
@@ -1532,8 +1577,7 @@
             document.getElementById(`${currentCameraView}View`).classList.add('active');
             
             // Show or hide height control based on selected view
-            document.getElementById('birdsEyeHeightControl').style.display = 
-                currentCameraView === 'birdsEye' ? 'block' : 'none';
+        
         }
 
         // Add these variables near the start of the script section, after scene initialization

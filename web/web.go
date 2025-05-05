@@ -46,11 +46,13 @@ var theGuidance *guidance.Guidance
 func init() {
 	// Create a rectangular field 400m x 800m
 	boundary := []planner.Point{
-		{X: 0, Y: 0},
-		{X: 0, Y: 400},
-		{X: 500, Y: 400},
-		{X: 400, Y: 0},
+		{X: -10, Y: -10},
+		{X: -10, Y: 60},
+		{X: 60, Y: 60},
+		{X: 60, Y: -10},
 	}
+
+	//boundary = planner.RotateBoundary(boundary, math.Pi/2)
 
 	theField = planner.NewField(boundary)
 	thePlanner = planner.NewABLinePlanner()
@@ -99,7 +101,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		switch message["type"] {
 		case "getField":
 			// Calculate inner boundary with 10m offset (or whatever offset you prefer)
-			thePlanner.GeneratePath(&theField, theTractor, theImplement)
+			//path, err := thePlanner.GeneratePath(&theField, theTractor, theImplement)
 			response := map[string]interface{}{
 				"type":          "field",
 				"boundary":      theField.Boundary,
@@ -168,7 +170,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "reset":
 			// Reset tractor position and controls
+			fmt.Println("resetting tractor")
 			theTractor.Reset()
+			fmt.Println("resetting implement")
 			theImplement.Reset()
 
 			// Recalculate pathreset

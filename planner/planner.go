@@ -15,6 +15,7 @@ type Point struct {
 	Y       float64
 	Visited bool
 	End     bool
+	Color   string
 }
 
 // ABLine represents a line defined by two points
@@ -100,11 +101,11 @@ func FindABLine(boundary []Point) *ABLine {
 		)
 
 		// Update longest line if this distance is greater
-		if distance > maxDistance {
+		if distance >= maxDistance {
 			maxDistance = distance
 			longestLine = ABLine{
-				PointA: current,
-				PointB: next,
+				PointA: next,
+				PointB: current,
 			}
 		}
 	}
@@ -122,9 +123,64 @@ func NewField(boundary []Point) Field {
 	}
 }
 
-// IsPointInField determines whether a point lies inside the field boundary
+// check if point lies between the start and end point, return true if it does
+func IsPointOnLine(start Point, end Point, point Point) bool {
+	// Calculate vectors
+	lineVec := Point{X: end.X - start.X, Y: end.Y - start.Y}
+	pointVec := Point{X: point.X - start.X, Y: point.Y - start.Y}
+
+	// Calculate cross product to check if point is collinear with line
+	crossProduct := lineVec.X*pointVec.Y - lineVec.Y*pointVec.X
+
+	// If cross product is not close to zero, point is not on the line
+	const epsilon = 0.0001
+	if math.Abs(crossProduct) > epsilon {
+		return false
+	}
+
+	// Check if point is between start and end using dot product
+	dotProduct := lineVec.X*pointVec.X + lineVec.Y*pointVec.Y
+
+	// If dot product is negative, point is before start
+	if dotProduct < 0 {
+		return false
+	}
+
+	// If dot product is greater than squared length of line, point is after end
+	squaredLength := lineVec.X*lineVec.X + lineVec.Y*lineVec.Y
+	if dotProduct > squaredLength {
+		return false
+	}
+
+	// Point is on the line segment
+	return true
+}
+
+// check if a points is on the boundary line, return true if it is
+func IsPointOnBoundary(boundary []Point, point Point) bool {
+	for i := 0; i < len(boundary)-1; i++ {
+		if IsPointOnLine(boundary[i], boundary[i+1], point) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsPointInField determines whether a point lies on or nside the field boundary
 // using the ray casting algorithm
 func IsPointInField(boundary []Point, point Point) bool {
+
+	// check if points is equal to any boundary point
+	for _, p := range boundary {
+		if p.X == point.X && p.Y == point.Y {
+			return true
+		}
+	}
+
+	if IsPointOnBoundary(boundary, point) {
+		return true
+	}
+
 	if len(boundary) < 3 {
 		return false // A field must have at least 3 points to form a polygon
 	}
@@ -261,8 +317,12 @@ func GenerateInnerBoundary(boundary []Point, offset float64) []Point {
 		line2 := [2]Point{ptx12, ptx2}
 		intersection := intersect(line1, line2)
 
-		// Add the intersection point to the inner boundary
-		innerBoundary = append(innerBoundary, intersection)
+		if intersection != nil {
+			innerBoundary = append(innerBoundary, *intersection)
+		} else {
+			panic("no intersection found")
+		}
+
 	}
 
 	return innerBoundary
@@ -286,11 +346,7 @@ func GetHeadlandArea(outerBoundary, innerBoundary []Point) []Point {
 }
 
 // GenerateHeadlandCurve generates a smooth U-turn between two parallel lines
-func GenerateHeadlandCurve(start Point, end Point, heading float64, direction int, intervalDistance float64, headlandOffset float64) []Point {
-
-	//fmt.Println("Generating headland curve")
-	// Calculate the centers for a three-arc turn with smooth transitions
-	entryArcCenter, mainArcCenter, exitArcCenter, minorRadius, mainRadius, entryArcLength := CalculateThreeArcCenters(start, end, direction, headlandOffset)
+func GenerateHeadlandCurve(previousPoint Point, start Point, end Point, intervalDistance float64, headlandOffset float64) []Point {
 
 	var points []Point
 
@@ -298,7 +354,16 @@ func GenerateHeadlandCurve(start Point, end Point, heading float64, direction in
 	numEntryPoints := 9
 
 	// Starting angle
-	//entryStartAngle := heading
+	entryStartAngle := math.Atan2(start.Y-previousPoint.Y, start.X-previousPoint.X)
+
+	currentAngle := entryStartAngle
+
+	// determine direction of turn
+	direction := Direction(previousPoint, start, end)
+
+	fmt.Println("Generating headland curve")
+	// Calculate the centers for a three-arc turn with smooth transitions
+	entryArcCenter, mainArcCenter, exitArcCenter, minorRadius, mainRadius, entryArcLength := CalculateThreeArcCenters(Vector{X: start.X, Y: start.Y}, Vector{X: end.X, Y: end.Y}, direction, headlandOffset)
 
 	//fmt.Printf("entryStartAngle: %v\n", entryStartAngle*180/math.Pi)
 	//fmt.Printf("entryArcLength: %v\n", entryArcLength*180/math.Pi)
@@ -306,57 +371,62 @@ func GenerateHeadlandCurve(start Point, end Point, heading float64, direction in
 	//	fmt.Printf("end point: %v\n", end)
 	//	fmt.Printf("entry arc centre: %v\n", entryArcCenter)
 	//	fmt.Printf("exit arc centre: %v\n", exitArcCenter)
-	//	fmt.Printf("direction: %v\n", direction)
+	fmt.Printf("direction: %v\n", direction)
 	// Calculate points for entry arc
-	var currentAngle float64
 	for i := 0; i < numEntryPoints; i++ {
 		t := float64(i) / float64(numEntryPoints)
-		currentAngle = math.Pi/2 - t*entryArcLength*float64(direction) // for left headland, first turn right
+		currentAngle = -math.Pi/2 + entryStartAngle - t*entryArcLength*float64(direction) // for left headland, first turn right
 		///		fmt.Printf("angle: %v\n", currentAngle*180/math.Pi)
+		if direction == 1 {
+			currentAngle = currentAngle - math.Pi
+		}
+
 		x := minorRadius * math.Cos(currentAngle)
 		y := minorRadius * math.Sin(currentAngle)
-		p := Point{X: x + entryArcCenter.X, Y: y + entryArcCenter.Y}
+		p := Point{X: entryArcCenter.X + x, Y: entryArcCenter.Y + y, Color: "red"}
 		//	fmt.Printf("entry point: %v\n", p)
 
 		points = append(points, p)
 	}
 
 	// Calculate main arc angles
-	mainStartAngle := math.Pi - (currentAngle - math.Pi/2)
-	// Normalize to be between 0 and 2π
-	mainStartAngle = math.Mod(mainStartAngle+2*math.Pi, 2*math.Pi)
+	mainStartAngle := entryStartAngle + (math.Pi/2 + entryArcLength)
 
+	fmt.Printf("mainStartAngle: %v currentAngle: %v\n", mainStartAngle*180/math.Pi, currentAngle*180/math.Pi)
 	// Adjust for direction if needed
 	mainArcLength := math.Pi + 2*entryArcLength // 270 degrees
 
+	fmt.Printf("mainArcLength: %v\n", mainArcLength*180/math.Pi)
 	//fmt.Printf("mainstartAngle: %v mainArcLength: %v entrystartAngle: %v\n", mainStartAngle*180/math.Pi, mainArcLength*180/math.Pi, entryArcLength*180/math.Pi)
 	numMainPoints := 27
 
 	for i := 0; i < numMainPoints; i++ {
 		t := float64(i) / float64(numMainPoints)
-		currentAngle = mainStartAngle - t*mainArcLength*float64(direction)
+		currentAngle = mainStartAngle*float64(-direction) + t*mainArcLength*float64(direction)
+
 		//		fmt.Println("main agnle:", currentAngle*180/math.Pi)
-		x := mainArcCenter.X + mainRadius*math.Sin(currentAngle)
-		y := mainArcCenter.Y + mainRadius*math.Cos(currentAngle)
+		x := mainArcCenter.X + mainRadius*math.Cos(currentAngle)
+		y := mainArcCenter.Y + mainRadius*math.Sin(currentAngle)
 		//		fmt.Printf("main point: %v\n", Point{X: x, Y: y})
-		points = append(points, Point{X: x, Y: y})
+		points = append(points, Point{X: x, Y: y, Color: "blue"})
 	}
 
 	// Calculate exit arc points
-	exitStartAngle := currentAngle
+	exitStartAngle := entryStartAngle - entryArcLength + math.Pi/2
 	exitArcLength := entryArcLength
 	numExitPoints := 9
 	//fmt.Println("currentAngle: ", currentAngle*180/math.Pi)
-	//fmt.Println("exitStartAngle: ", exitStartAngle*180/math.Pi)
+	//fmt.Println("exitStartAngle: ", exitStartcurrentAngleAngle*180/math.Pi)
 	//fmt.Println("exitArcLength: ", exitArcLength*180/math.Pi)
 	for i := 0; i < numExitPoints; i++ {
 		t := float64(i) / float64(numExitPoints)
-		currentAngle = exitStartAngle + t*exitArcLength*float64(direction)
-		x := exitArcCenter.X - minorRadius*math.Sin(currentAngle)
-		y := exitArcCenter.Y - minorRadius*math.Cos(currentAngle)
+		currentAngle = exitStartAngle*float64(-direction) - t*exitArcLength*float64(direction)
 
-		//		fmt.Printf("exit point: %v\n", Point{X: x, Y: y})
-		points = append(points, Point{X: x, Y: y})
+		x := exitArcCenter.X + minorRadius*math.Cos(currentAngle)
+		y := exitArcCenter.Y + minorRadius*math.Sin(currentAngle)
+
+		//fmt.Printf("exit point: %v\n", Point{X: x, Y: y})
+		points = append(points, Point{X: x, Y: y, Color: "green"})
 	}
 
 	//fmt.Println("currentAngle: ", currentAngle*180/math.Pi)
@@ -364,38 +434,88 @@ func GenerateHeadlandCurve(start Point, end Point, heading float64, direction in
 	return points
 }
 
-// CalculateThreeArcCenters calculates the centers of three arcs for a smooth headland turn
-// Returns the center points and radii for entry, main, and exit arcs
-func CalculateThreeArcCenters(start Point, end Point, direction int, headlandOffset float64) (Point, Point, Point, float64, float64, float64) {
-	// Calculate vector from start to end
-	vector := Point{
-		X: end.X - start.X,
-		Y: end.Y - start.Y,
+func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, intervalDistance float64, headlandOffset float64) []Point {
+
+	startVector := PointToVector(start)
+	endVector := PointToVector(end)
+
+	// vector from previous point to start point
+	vector := Vector{X: start.X - previousPoint.X, Y: start.Y - previousPoint.Y}
+
+	turnVector := Vector{X: end.X - start.X, Y: end.Y - start.Y}
+
+	vector = vector.Unit()
+
+	perpVector := vector.Rotate(math.Pi / 2)
+
+	// project vector from start to end onto perpVector
+	projection := turnVector.Dot(perpVector)
+
+	fmt.Printf("projection: %v\n", projection)
+	fmt.Printf("startVector: %v\n", startVector)
+	fmt.Printf("vector: %v\n", vector)
+	fmt.Printf("endVector: %v\n", turnVector)
+	fmt.Printf("perpVector: %v\n", perpVector)
+
+	vectors := []Vector{
+		startVector,
+		startVector.Add(vector.SetLength(headlandOffset / 3)),
+		//startVector.Add(vector.SetLength(headlandOffset)).Add(perpVector.SetLength(3).Reverse()),
+		startVector.Add(vector.SetLength(headlandOffset)).Add(turnVector.SetLength(headlandOffset / 2)),
+
+		//startVector.Add(perpVector.SetLength(projection / 2)).Add(vector.SetLength(headlandOffset)),
+		endVector.Add(perpVector.SetLength(3)).Add(vector.SetLength(headlandOffset)),
+		endVector.Add(vector.SetLength(headlandOffset / 3)),
+		endVector,
 	}
 
-	midpoint := Point{
-		X: (start.X + end.X) / 2,
-		Y: (start.Y + end.Y) / 2,
+	fmt.Printf("firstControlPoint: %v\n", vectors[0].Sub(startVector))
+	fmt.Printf("secondControlPoint: %v\n", vectors[1].Sub(startVector))
+	fmt.Printf("thirdControlPoint: %v\n", vectors[2].Sub(startVector))
+	//fmt.Printf("forthControlPoint: %v\n", vectors[3].Sub(startVector))
+
+	// Vec
+
+	bezierCurve := BezierCurve{
+		ControlPoints: VectorsToPoints(vectors),
 	}
+
+	return bezierCurve.GeneratePoints(100)
+}
+
+// CalculateThreeArcCenters calculates the centers of three arcs for a smooth headland turn
+// Returns the center points and radii for entry, main, and exit arcs
+func CalculateThreeArcCenters(start Vector, end Vector, direction int, headlandOffset float64) (Point, Point, Point, float64, float64, float64) {
+	fmt.Println("CalculateThreeArcCenters")
+
+	fmt.Printf("start: %v\n", start)
+	fmt.Printf("end: %v\n", end)
+	fmt.Printf("direction: %v\n", direction)
+	fmt.Printf("headlandOffset: %v\n", headlandOffset)
+
+	vector := end.Sub(start)
+
+	fmt.Printf("vector: %v\n", vector)
+
+	midpoint := start.Middle(end)
 	//fmt.Printf("midpoint: %v\n", midpoint)
 
 	// Calculate distance between start and end points
-	distance := math.Sqrt(vector.X*vector.X + vector.Y*vector.Y)
+	distance := vector.Length()
 	//fmt.Printf("distance: %v\n", distance)
 
 	// Normalize vector
-	vector.X /= distance
-	vector.Y /= distance
+	vector = vector.Unit()
 
 	// Calculate perpendicular vector based on direction
-	var perpVector Point
+	var perpVector Vector
 	if direction == 1 {
-		// Rotate 90 degrees clockwise
-		perpVector = Point{X: vector.Y, Y: -vector.X}
+		perpVector = vector.Rotate(math.Pi / 2)
 	} else {
-		// Rotate 90 degrees counterclockwise
-		perpVector = Point{X: -vector.Y, Y: vector.X}
+		perpVector = vector.Rotate(-math.Pi / 2)
 	}
+
+	fmt.Printf("perpVector: %v\n", perpVector)
 
 	// push start and end points outwards by headland offset
 	//start = Point{X: start.X + perpVector.X*headlandOffset, Y: start.Y + perpVector.Y*headlandOffset}
@@ -418,8 +538,8 @@ func CalculateThreeArcCenters(start Point, end Point, direction int, headlandOff
 	//fmt.Printf("Acos(mA/mH): %v\n", angle*180/math.Pi)
 
 	mainCenter := Point{
-		X: midpoint.X + perpVector.X*mainCentreOffset,
-		Y: midpoint.Y + perpVector.Y*mainCentreOffset,
+		X: midpoint.X - perpVector.X*mainCentreOffset,
+		Y: midpoint.Y - perpVector.Y*mainCentreOffset,
 	}
 
 	// Calculate entry arc center
@@ -441,6 +561,12 @@ func CalculateThreeArcCenters(start Point, end Point, direction int, headlandOff
 		Y: end.Y + vector.Y*minorRadius,
 	}
 
+	fmt.Printf("entryCenter: %v\n", entryCenter)
+	fmt.Printf("mainCenter: %v\n", mainCenter)
+	fmt.Printf("exitCenter: %v\n", exitCenter)
+	fmt.Printf("minorRadius: %v\n", minorRadius)
+	fmt.Printf("mainRadius: %v\n", mainRadius)
+	fmt.Printf("angle: %v\n", angle*180/math.Pi)
 	return entryCenter, mainCenter, exitCenter, minorRadius, mainRadius, angle
 }
 
@@ -564,10 +690,10 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 	}
 
 	// maximum length of a pass
-	numPasses := int(math.Ceil(maxPerpDistance / implement.WorkingWidth))
+	numPasses := 2 //int(math.Ceil(maxPerpDistance / implement.WorkingWidth))
 	fmt.Printf("numPasses: %v\n", numPasses)
 
-	const intervalDistance = 1.0 // Distance between points in meters
+	const intervalDistance = 20.0 // Distance between points in meters
 
 	// Generate parallel lines with fixed interval points
 	var path []Point
@@ -584,8 +710,6 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 			X: field.ABLine.PointA.X + dx*maxDistance + perpX*offset,
 			Y: field.ABLine.PointA.Y + dy*maxDistance + perpY*offset,
 		}
-
-		fmt.Printf("startPoint: %v, endPoint: %v\n", startPoint, endPoint)
 
 		// reverse every second pass
 		if i%2 == 1 {
@@ -611,55 +735,111 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 		}
 		// append end point
 		//fmt.Printf("end point: %v\n", endPoint)
-		endPoint.End = true
-		path = append(path, endPoint)
+		path[len(path)-1].End = true
 
 	}
 
 	path = ClipPath(path, field.WorkingArea)
 
-	_, err := GenerateHeadlandPath(path, field, tractor, implement)
+	pathHeadlands, err := GenerateHeadlandPath(path, field, tractor, implement)
 	if err != nil {
-		return nil, err
+		return path, err
 	}
 
-	return path, nil
+	return pathHeadlands, nil
 }
 
 func ClipPath(path []Point, boundary []Point) []Point {
 
 	var newPath []Point
 
-	var lastGoodPoint *Point
-	for _, p := range path {
-		if IsPointInField(boundary, p) {
-			newPath = append(newPath, p)
+	var lastPoint *Point
+	var outside bool
+	for i, p := range path {
 
-			lastGoodPoint = &p
+		if IsPointInField(boundary, p) {
+
+			if outside {
+				// intersect last point and current point
+				_, p2 := IntersectBoundary(boundary, path[i-1], p)
+				if p2 != nil {
+					newPath = append(newPath, *p2)
+				}
+			} else {
+				newPath = append(newPath, p)
+			}
+			outside = false
+			lastPoint = &p
 		} else {
 			//fmt.Printf("point %v is outside the field boundary\n", p)
-			if lastGoodPoint != nil {
-				lastGoodPoint.End = true
-				// derefernce lastGoodPoint
-				lastGoodPoint = nil
+			if lastPoint == nil {
+				panic("lastPoint is nil")
+			}
+
+			_, p2 := IntersectBoundary(boundary, *lastPoint, p)
+
+			if p2 != nil {
+
+				p2.End = true
+				newPath = append(newPath, *p2)
+
+			}
+			lastPoint = &p
+			outside = true
+		}
+	}
+
+	// remove duplicate points
+	newPath = RemoveDuplicatePoints(newPath)
+
+	return newPath
+}
+
+func RemoveDuplicatePoints(path []Point) []Point {
+	var newPoints []Point
+
+	newPoints = append(newPoints, path[0])
+	for i := 1; i < len(path); i++ {
+		x := path[i].X == path[i-1].X
+		y := path[i].Y == path[i-1].Y
+		if !(x && y) { // not duplicate
+			newPoints = append(newPoints, path[i])
+			//newPoints[len(newPoints)-1].End = path[i-1].End || path[i].End
+		} else {
+			fmt.Printf("duplicate point: %v %v\n", path[i], path[i-1])
+			if path[i].End {
+				newPoints[len(newPoints)-1].End = true
 			}
 		}
 	}
 
-	return newPath
+	return newPoints
 }
 
 func GenerateHeadlandPath(path []Point, field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, error) {
 
 	// clip path
-	clippedPath := ClipPath(path, field.WorkingArea)
+	//path := ClipPath(path, field.WorkingArea)
+
+	clippedPath := path
+	//test patj
+
+	//clippedPathLeft := []Point{
+	//	{X: -10, Y: 0},
+	//	{X: 0, Y: 0, End: true},
+	//	{X: 0, Y: 10},
+	//	{X: -10, Y: 10, End: true},
+	//	{X: -10, Y: 20},
+	//	{X: 50, Y: 20, End: true},
+	//	{X: 50, Y: 10},
+	//}
 
 	headlandPath := []Point{}
 	// scan clip path point by point
 	headlandPath = append(headlandPath, clippedPath[0])
 	for i := 1; i < len(clippedPath); i++ {
 		if clippedPath[i-1].End {
-			headlandCurve := GenerateHeadlandCurve(clippedPath[i-1], clippedPath[i], 0, 1, 0.5, implement.WorkingWidth)
+			headlandCurve := GenerateHeadlandBezierCurve(clippedPath[i-2], clippedPath[i-1], clippedPath[i], 0.5, implement.WorkingWidth)
 			headlandPath = append(headlandPath, headlandCurve...)
 
 		}
@@ -667,4 +847,70 @@ func GenerateHeadlandPath(path []Point, field *Field, tractor *tractor.Tractor, 
 	}
 
 	return headlandPath, nil
+}
+
+func IntersectBoundary(boundary []Point, insidePoint Point, outsidePoint Point) (bool, *Point) {
+
+	// for each segment in the boundary, check if it intersects with the line segment from insidePoint to outsidePoint
+	for i := 0; i < len(boundary)-1; i++ {
+		segment1 := [2]Point{boundary[i], boundary[i+1]}
+		segment2 := [2]Point{insidePoint, outsidePoint}
+		if intersects, p := DoSegmentsIntersect(segment1, segment2); intersects {
+
+			return true, p
+		}
+	}
+
+	return false, nil
+}
+
+// check if two segments intersect, return true if they do and the intersection point
+func DoSegmentsIntersect(segment1 [2]Point, segment2 [2]Point) (bool, *Point) {
+	// Helper function to determine if point c is left of line from a to b
+	isLeftOf := func(a, b, c Point) float64 {
+		return (b.X-a.X)*(c.Y-a.Y) - (c.X-a.X)*(b.Y-a.Y)
+	}
+
+	// Get points from segments
+	p1, p2 := segment1[0], segment1[1]
+	p3, p4 := segment2[0], segment2[1]
+
+	// Check if the segments intersect using orientation tests
+	d1 := isLeftOf(p3, p4, p1)
+	d2 := isLeftOf(p3, p4, p2)
+	d3 := isLeftOf(p1, p2, p3)
+	d4 := isLeftOf(p1, p2, p4)
+
+	// check if the segments are parallel
+	if d1 == 0 && d2 == 0 && d3 == 0 && d4 == 0 {
+		return false, nil
+	}
+
+	// If the orientations are different (one positive, one negative),
+	// then the segments intersect
+	if ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+		((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)) {
+		intersect := intersect(segment1, segment2)
+		return true, intersect
+	}
+
+	// Check if any endpoint lies exactly on the other segment
+	if d1 == 0 && IsPointOnLine(p3, p4, p1) {
+		intersect := intersect(segment1, segment2)
+		return true, intersect
+	}
+	if d2 == 0 && IsPointOnLine(p3, p4, p2) {
+		intersect := intersect(segment1, segment2)
+		return true, intersect
+	}
+	if d3 == 0 && IsPointOnLine(p1, p2, p3) {
+		intersect := intersect(segment1, segment2)
+		return true, intersect
+	}
+	if d4 == 0 && IsPointOnLine(p1, p2, p4) {
+		intersect := intersect(segment1, segment2)
+		return true, intersect
+	}
+
+	return false, nil
 }
