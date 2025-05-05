@@ -47,9 +47,9 @@ func init() {
 	// Create a rectangular field 400m x 800m
 	boundary := []planner.Point{
 		{X: -10, Y: -10},
-		{X: -10, Y: 60},
-		{X: 60, Y: 60},
-		{X: 60, Y: -10},
+		{X: -10, Y: 200},
+		{X: 200, Y: 200},
+		{X: 200, Y: -10},
 	}
 
 	//boundary = planner.RotateBoundary(boundary, math.Pi/2)

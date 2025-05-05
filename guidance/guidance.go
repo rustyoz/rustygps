@@ -3,6 +3,7 @@ package guidance
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/rustyoz/rustygps/planner"
 	"github.com/rustyoz/rustygps/types"
@@ -37,6 +38,23 @@ type TractorState struct {
 	WorldPos      types.WorldPosition
 	SteeringAngle float64 // Steering angle in radians
 	Throttle      float64 // Throttle in percent
+}
+
+func (t *TractorState) Reset() {
+	t.Position = types.Position{
+		Lat:     0,
+		Lon:     0,
+		Heading: 0,
+		Speed:   0,
+		Time:    time.Now(),
+	}
+	t.WorldPos = types.WorldPosition{
+		X:       0,
+		Y:       0,
+		Heading: 0,
+	}
+	t.SteeringAngle = 0
+	t.Throttle = 0
 }
 
 func NewGuidance(path *[]planner.Point) *Guidance {
@@ -206,6 +224,8 @@ func (g *Guidance) UpdateConfig(config GuidanceConfig) {
 }
 
 func (g *Guidance) Reset() {
+
+	g.TractorState.Reset()
 
 	lastVisitedPointIndex = 0
 	g.TargetPoint = (*g.Path)[0]

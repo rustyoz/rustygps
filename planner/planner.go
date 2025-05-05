@@ -434,7 +434,7 @@ func GenerateHeadlandCurve(previousPoint Point, start Point, end Point, interval
 	return points
 }
 
-func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, intervalDistance float64, headlandOffset float64) ([]Point, []Point) {
+func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, intervalDistance float64, implement *implement.Implement) ([]Point, []Point) {
 
 	startVector := PointToVector(start)
 	endVector := PointToVector(end)
@@ -448,6 +448,12 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 
 	perpVector := vector.Rotate(math.Pi / 2)
 
+	direction := Direction(previousPoint, start, end)
+
+	if direction == -1 {
+		perpVector = perpVector.Reverse()
+	}
+
 	// project vector from start to end onto perpVector
 	projection := turnVector.Dot(perpVector)
 
@@ -459,15 +465,22 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 
 	vectors := []Vector{
 		startVector,
-		startVector.Add(vector.SetLength(headlandOffset / 3)),
-		//startVector.Add(vector.SetLength(headlandOffset)).Add(perpVector.SetLength(3).Reverse()),
-		startVector.Add(vector.SetLength(headlandOffset)),
+		startVector.Add(vector.SetLength(implement.Length)),
+		startVector.Add(vector.SetLength(implement.Length * 2)),
+		startVector.Add(vector.SetLength(implement.Length * 4)).Add(perpVector.SetLength(3).Reverse()),
+		startVector.Add(vector.SetLength(implement.Length * 4)),
 
-		startVector.Add(vector.SetLength(headlandOffset)).Add(turnVector.SetLength(headlandOffset / 2)),
+		startVector.Add(vector.SetLength(implement.Length * 4)).Add(turnVector.Scale(1.0 / 2.0)),
+
+		endVector.Add(vector.SetLength(implement.Length * 4)).Add(perpVector.SetLength(3)),
+
+		//startVector.Add(vector.SetLength(headlandOffset * 2)).Add(turnVector.SetLength(headlandOffset)),
 
 		//startVector.Add(perpVector.SetLength(projection / 2)).Add(vector.SetLength(headlandOffset)),
-		endVector.Add(perpVector.SetLength(3)).Add(vector.SetLength(headlandOffset)),
-		endVector.Add(vector.SetLength(headlandOffset / 3)),
+		endVector.Add(vector.SetLength(implement.Length * 3)).Add(perpVector.SetLength(3)),
+
+		//endVector.Add(vector.SetLength(implement.Length * 2)),
+		endVector.Add(vector.SetLength(implement.Length)),
 		endVector,
 	}
 
@@ -478,11 +491,20 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 
 	// Vec
 
-	bezierCurve := BezierCurve{
-		ControlPoints: VectorsToPoints(vectors),
+	// split the curve into two curves
+	bezierCurve1 := BezierCurve{
+		ControlPoints: VectorsToPoints(vectors[:6]),
+	}
+	bezierCurve2 := BezierCurve{
+		ControlPoints: VectorsToPoints(vectors[5:]),
 	}
 
-	return bezierCurve.GeneratePoints(100), bezierCurve.ControlPoints
+	bezierCurve1Points := bezierCurve1.GeneratePoints(100)
+	bezierCurve2Points := bezierCurve2.GeneratePoints(100)
+
+	points := append(bezierCurve1Points, bezierCurve2Points...)
+
+	return points, VectorsToPoints(vectors)
 }
 
 // CalculateThreeArcCenters calculates the centers of three arcs for a smooth headland turn
@@ -611,7 +633,7 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 		return nil, nil, errors.New("implement width must be positive")
 	}
 
-	field.WorkingArea = GenerateInnerBoundary(field.Boundary, implement.WorkingWidth)
+	field.WorkingArea = GenerateInnerBoundary(field.Boundary, implement.WorkingWidth*2.75)
 
 	field.ABLine = *FindABLine(field.WorkingArea)
 
@@ -692,7 +714,7 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 	}
 
 	// maximum length of a pass
-	numPasses := 2 //int(math.Ceil(maxPerpDistance / implement.WorkingWidth))
+	numPasses := int(math.Ceil(maxPerpDistance / implement.WorkingWidth))
 	fmt.Printf("numPasses: %v\n", numPasses)
 
 	const intervalDistance = 20.0 // Distance between points in meters
@@ -842,7 +864,7 @@ func GenerateHeadlandPath(path []Point, field *Field, tractor *tractor.Tractor, 
 	headlandPath = append(headlandPath, clippedPath[0])
 	for i := 1; i < len(clippedPath); i++ {
 		if clippedPath[i-1].End {
-			headlandCurve, controlPoints := GenerateHeadlandBezierCurve(clippedPath[i-2], clippedPath[i-1], clippedPath[i], 0.5, implement.WorkingWidth)
+			headlandCurve, controlPoints := GenerateHeadlandBezierCurve(clippedPath[i-2], clippedPath[i-1], clippedPath[i], 0.5, implement)
 			headlandPath = append(headlandPath, headlandCurve...)
 			controlPath = append(controlPath, controlPoints...)
 
