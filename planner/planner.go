@@ -33,7 +33,7 @@ type Field struct {
 
 // PathPlanner interface defines methods that all path planning algorithms must implement
 type PathPlanner interface {
-	GeneratePath(field Field, tractor tractor.Tractor, implement implement.Implement) ([]Point, error)
+	GeneratePath(field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, []Point, error)
 }
 
 // ABLinePlanner implements parallel path planning based on AB lines
@@ -320,7 +320,7 @@ func GenerateInnerBoundary(boundary []Point, offset float64) []Point {
 		if intersection != nil {
 			innerBoundary = append(innerBoundary, *intersection)
 		} else {
-			panic("no intersection found")
+			return nil
 		}
 
 	}
@@ -939,4 +939,290 @@ func DoSegmentsIntersect(segment1 [2]Point, segment2 [2]Point) (bool, *Point) {
 	}
 
 	return false, nil
+}
+
+// SpiralPlanner is a planner that generates a spiral path, it implements PathPlanner interface
+type SpiralPlanner struct {
+	Path []Point
+
+	Centre Point
+
+	MaxLaps int
+}
+
+func NewSpiralPlanner() *SpiralPlanner {
+	return &SpiralPlanner{
+		MaxLaps: 0,
+	}
+}
+
+// pathplanner GeneratePath method as per interface
+func (s *SpiralPlanner) GeneratePath(field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, []Point, error) {
+
+	// generate spiral path
+
+	// find the centre of the field
+
+	//
+	if s.MaxLaps < 0 {
+		panic("max laps must be greater or equal to 0")
+	}
+
+	maxlaps := s.MaxLaps
+
+	if s.MaxLaps == 0 {
+		maxlaps = math.MaxInt
+	}
+
+	firstlap := GenerateInnerBoundary(field.Boundary, implement.WorkingWidth/2)
+	if firstlap == nil {
+		return nil, nil, errors.New("invalid boundary or offset")
+	}
+
+	innerlap := firstlap
+
+	fullpath := []Point{}
+	fullpath = append(fullpath, firstlap...)
+
+	// add the first point to close the path
+	fullpath = append(fullpath, fullpath[0])
+	//fullpath = Subdivide(fullpath, implement.WorkingWidth/2)
+	// trim last point
+	//fullpath = fullpath[:len(fullpath)-1]
+
+	// trim the last two points of pull path to make it a loop
+	trimmed := TrimLine(fullpath[len(fullpath)-2:], implement.WorkingWidth)
+	fullpath = fullpath[:len(fullpath)-2]
+	fullpath = append(fullpath, trimmed...)
+
+	// for each lap, generate an inner boundary to form the lap, using the working width, use this recursively to form the spiral, offset by half the working width
+	for i := 1; i < maxlaps; i++ {
+		innerlap = GenerateInnerBoundary(innerlap, implement.WorkingWidth)
+		if innerlap == nil {
+			break
+		}
+
+		innerlapclosed := append(innerlap, innerlap[0])
+
+		innerlapclosed = TrimPath(innerlapclosed, implement.WorkingWidth)
+
+		fullpath = append(fullpath, innerlapclosed...)
+
+		if MinimumDistanceToCentre(innerlap) < implement.WorkingWidth {
+			break
+		}
+	}
+
+	fullpath = RoundCorners(fullpath, implement.WorkingWidth)
+	fullpath = Subdivide(fullpath, implement.Length)
+
+	return fullpath, nil, nil
+}
+
+// subdivde a path givin as points into more points at a fixed interval
+func Subdivide(path []Point, interval float64) []Point {
+
+	// for each point in the path, calculate the distance to the next point
+	// if the distance is greater than the interval, add a new point at the interval distance
+	// return the new path
+
+	newPath := []Point{}
+
+	for i := 0; i < len(path)-1; i++ {
+		distance := math.Sqrt(math.Pow(path[i+1].X-path[i].X, 2) + math.Pow(path[i+1].Y-path[i].Y, 2))
+		if distance > interval {
+
+			// calculate the number of points to add
+			numPoints := int(math.Ceil(distance / interval))
+			for j := 0; j < numPoints; j++ {
+				t := float64(j) / float64(numPoints)
+				newPath = append(newPath, Point{
+					X: path[i].X + (path[i+1].X-path[i].X)*t,
+					Y: path[i].Y + (path[i+1].Y-path[i].Y)*t,
+				})
+			}
+		} else {
+			newPath = append(newPath, path[i])
+		}
+	}
+
+	return newPath
+}
+
+func MinimumDistanceToCentre(boundary []Point) float64 {
+
+	centre := FindCentreOfField(boundary)
+
+	minDistance := math.Inf(1)
+
+	for _, p := range boundary {
+
+		distance := p.Distance(centre)
+		if distance < minDistance {
+			minDistance = distance
+		}
+	}
+
+	return minDistance
+}
+
+// RoundCorners smooths the corners of a path by replacing sharp corners with arcs of the specified radius
+func RoundCorners(path []Point, radius float64) []Point {
+	if len(path) < 3 || radius <= 0 {
+		return path
+	}
+
+	result := []Point{}
+
+	// Add the first point
+	result = append(result, path[0])
+
+	// Process each corner (middle points)
+	for i := 1; i < len(path)-1; i++ {
+		prev := path[i-1]
+		current := path[i]
+		next := path[i+1]
+
+		// Calculate vectors for the two segments
+		v1 := Vector{X: current.X - prev.X, Y: current.Y - prev.Y}
+		v2 := Vector{X: next.X - current.X, Y: next.Y - current.Y}
+
+		// Normalize vectors
+		v1Len := math.Sqrt(v1.X*v1.X + v1.Y*v1.Y)
+		v2Len := math.Sqrt(v2.X*v2.X + v2.Y*v2.Y)
+
+		// invert the vectors
+		//v1 = v1.Reverse()
+		//v2 = v2.Reverse()
+
+		if v1Len == 0 || v2Len == 0 {
+			result = append(result, current)
+			continue
+		}
+
+		v1.X /= v1Len
+		v1.Y /= v1Len
+		v2.X /= v2Len
+		v2.Y /= v2Len
+
+		// Calculate the angle between the segments
+		cosAngle := v1.X*v2.X + v1.Y*v2.Y
+		angle := math.Acos(math.Max(-1, math.Min(1, cosAngle)))
+
+		// If the angle is too small, just keep the corner point
+		if math.Abs(angle) < 0.1 || math.Abs(angle-math.Pi) < 0.1 {
+			result = append(result, current)
+			continue
+		}
+
+		// Calculate the tangent distance
+		tanDist := radius * math.Tan(angle/2)
+
+		// Ensure tangent distance isn't too large for the segments
+		tanDist = math.Min(tanDist, v1Len/2)
+		tanDist = math.Min(tanDist, v2Len/2)
+
+		// Calculate tangent points
+		t1 := Point{
+			X: current.X - v1.X*tanDist,
+			Y: current.Y - v1.Y*tanDist,
+		}
+
+		t2 := Point{
+			X: current.X + v2.X*tanDist,
+			Y: current.Y + v2.Y*tanDist,
+		}
+
+		v1 = v1.Reverse()
+
+		// Calculate the center of the arc
+		bisector := Vector{
+			X: v1.X + v2.X,
+			Y: v1.Y + v2.Y,
+		}
+		bisectorLen := math.Sqrt(bisector.X*bisector.X + bisector.Y*bisector.Y)
+
+		if bisectorLen < 0.001 {
+			result = append(result, current)
+			continue
+		}
+
+		bisector.X /= bisectorLen
+		bisector.Y /= bisectorLen
+
+		// Direction from corner to center
+		direction := Direction(prev, current, next)
+
+		// Distance from corner to center
+		cornerToCenterDist := radius / math.Sin(angle/2)
+
+		center := Point{
+			X: current.X + bisector.X*cornerToCenterDist,
+			Y: current.Y + bisector.Y*cornerToCenterDist,
+		}
+
+		// Calculate start and end angles
+		startAngle := math.Atan2(t1.Y-center.Y, t1.X-center.X)
+		endAngle := math.Atan2(t2.Y-center.Y, t2.X-center.X)
+
+		// Ensure we go the short way around
+		if math.Abs(endAngle-startAngle) > math.Pi {
+			fmt.Println("angle", endAngle-startAngle)
+			endAngle = math.Pi*2 - endAngle
+		}
+
+		// Add the first tangent point
+		result = append(result, t1)
+
+		// Add arc points
+		numArcPoints := int(math.Max(3, math.Abs(endAngle-startAngle)*radius/5))
+		for j := 1; j < numArcPoints; j++ {
+			t := float64(j) / float64(numArcPoints)
+			angle := startAngle + t*(math.Abs(endAngle-startAngle)*float64(direction))
+			arcPoint := Point{
+				X: center.X + radius*math.Cos(angle),
+				Y: center.Y + radius*math.Sin(angle),
+			}
+			result = append(result, arcPoint)
+		}
+
+		// Add the second tangent point
+		result = append(result, t2)
+	}
+
+	// Add the last point
+	result = append(result, path[len(path)-1])
+
+	return result
+}
+
+// trim vector by length
+func TrimLine(line []Point, trimlength float64) []Point {
+
+	v1 := Vector{X: line[1].X - line[0].X, Y: line[1].Y - line[0].Y}
+
+	if v1.Length() < trimlength {
+		return line
+	}
+
+	v1 = v1.SetLength(v1.Length() - trimlength)
+
+	v2 := PointToVector(line[0])
+	v2 = v2.Add(v1)
+
+	return []Point{
+		line[0],
+		v2.ToPoint(),
+	}
+}
+
+func TrimPath(path []Point, trimlength float64) []Point {
+
+	if len(path) < 2 {
+		return path
+	}
+
+	trimmed := TrimLine(path[len(path)-2:], trimlength)
+
+	return append(path[:len(path)-2], trimmed...)
 }

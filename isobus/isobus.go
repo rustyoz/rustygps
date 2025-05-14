@@ -2,6 +2,7 @@ package isobus
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"sync"
 	"time"
@@ -37,7 +38,7 @@ type Device struct {
 
 // ISOBUS represents the ISOBUS interface
 type ISOBUS struct {
-	port         serial.SerialPort
+	port         io.ReadWriteCloser
 	portName     string
 	baudRate     uint
 	isConnected  bool
@@ -137,7 +138,7 @@ func encodeMessage(msg Message) []byte {
 
 	// Priority and PGN
 	pgn := msg.PGN & 0x3FFFF // 18 bits for PGN
-	result[0] = byte((msg.Priority << 5) | ((pgn >> 16) & 0x7))
+	result[0] = byte((msg.Priority << 5) | uint8((pgn>>16)&0x7))
 	result[1] = byte((pgn >> 8) & 0xFF)
 	result[2] = byte(pgn & 0xFF)
 

@@ -123,6 +123,9 @@ func Direction(a, b, c Point) int {
 		return -1
 	}
 	if angleDiff > 0 {
+		if angleDiff > math.Pi {
+			return -1
+		}
 		return 1
 	}
 
@@ -226,4 +229,11 @@ func VectorsToPoints(vectors []Vector) []Point {
 		points[i] = vectors[i].ToPoint()
 	}
 	return points
+}
+
+func (p Point) Distance(a Point) float64 {
+
+	// distance from point p to point a
+
+	return math.Sqrt(math.Pow(p.X-a.X, 2) + math.Pow(p.Y-a.Y, 2))
 }

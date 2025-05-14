@@ -38,7 +38,7 @@ type TractorControls struct {
 
 var theTractor *tractor.Tractor
 var theImplement *implement.Implement
-var thePlanner *planner.ABLinePlanner
+var thePlanner planner.PathPlanner
 var theField planner.Field
 var thePath []planner.Point
 var theGuidance *guidance.Guidance
@@ -55,7 +55,7 @@ func init() {
 	//boundary = planner.RotateBoundary(boundary, math.Pi/2)
 
 	theField = planner.NewField(boundary)
-	thePlanner = planner.NewABLinePlanner()
+	thePlanner = planner.NewSpiralPlanner()
 	theGuidance = guidance.NewGuidance(&thePath)
 }
 
