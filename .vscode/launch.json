@@ -8,6 +8,15 @@
             "mode": "debug",
             "program": "${workspaceFolder}/main.go", // Adjust this path to your main package
             "showLog": true
+        },
+        {
+            "name": "Launch Package",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}", // Debugs the package of the currently open file
+            "env": {},
+            "args": []
         }
     ]
 }
