@@ -110,6 +110,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			data, err := json.Marshal(response)
 			if err != nil {
+				fmt.Println("error marshalling field to json", err)
 				continue
 			}
 			client.mu.Lock()
@@ -140,10 +141,13 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				"points":        path,
 				"controlPoints": controlPath,
 			}
+
 			data, err := json.Marshal(response)
 			if err != nil {
 				continue
 			}
+			fmt.Println("sending path to client")
+			fmt.Println(string(data))
 			client.mu.Lock()
 			err = client.conn.WriteMessage(websocket.TextMessage, data)
 			client.mu.Unlock()

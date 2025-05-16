@@ -2,7 +2,6 @@ package planner
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/rustyoz/rustygps/implement"
@@ -361,7 +360,7 @@ func GenerateHeadlandCurve(previousPoint Point, start Point, end Point, interval
 	// determine direction of turn
 	direction := Direction(previousPoint, start, end)
 
-	fmt.Println("Generating headland curve")
+	//fmt.Println("Generating headland curve")
 	// Calculate the centers for a three-arc turn with smooth transitions
 	entryArcCenter, mainArcCenter, exitArcCenter, minorRadius, mainRadius, entryArcLength := CalculateThreeArcCenters(Vector{X: start.X, Y: start.Y}, Vector{X: end.X, Y: end.Y}, direction, headlandOffset)
 
@@ -371,7 +370,7 @@ func GenerateHeadlandCurve(previousPoint Point, start Point, end Point, interval
 	//	fmt.Printf("end point: %v\n", end)
 	//	fmt.Printf("entry arc centre: %v\n", entryArcCenter)
 	//	fmt.Printf("exit arc centre: %v\n", exitArcCenter)
-	fmt.Printf("direction: %v\n", direction)
+	//fmt.Printf("direction: %v\n", direction)
 	// Calculate points for entry arc
 	for i := 0; i < numEntryPoints; i++ {
 		t := float64(i) / float64(numEntryPoints)
@@ -392,11 +391,11 @@ func GenerateHeadlandCurve(previousPoint Point, start Point, end Point, interval
 	// Calculate main arc angles
 	mainStartAngle := entryStartAngle + (math.Pi/2 + entryArcLength)
 
-	fmt.Printf("mainStartAngle: %v currentAngle: %v\n", mainStartAngle*180/math.Pi, currentAngle*180/math.Pi)
+	//fmt.Printf("mainStartAngle: %v currentAngle: %v\n", mainStartAngle*180/math.Pi, currentAngle*180/math.Pi)
 	// Adjust for direction if needed
 	mainArcLength := math.Pi + 2*entryArcLength // 270 degrees
 
-	fmt.Printf("mainArcLength: %v\n", mainArcLength*180/math.Pi)
+	//fmt.Printf("mainArcLength: %v\n", mainArcLength*180/math.Pi)
 	//fmt.Printf("mainstartAngle: %v mainArcLength: %v entrystartAngle: %v\n", mainStartAngle*180/math.Pi, mainArcLength*180/math.Pi, entryArcLength*180/math.Pi)
 	numMainPoints := 27
 
@@ -454,15 +453,6 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 		perpVector = perpVector.Reverse()
 	}
 
-	// project vector from start to end onto perpVector
-	projection := turnVector.Dot(perpVector)
-
-	fmt.Printf("projection: %v\n", projection)
-	fmt.Printf("startVector: %v\n", startVector)
-	fmt.Printf("vector: %v\n", vector)
-	fmt.Printf("endVector: %v\n", turnVector)
-	fmt.Printf("perpVector: %v\n", perpVector)
-
 	vectors := []Vector{
 		startVector,
 		startVector.Add(vector.SetLength(implement.Length)),
@@ -484,9 +474,9 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 		endVector,
 	}
 
-	fmt.Printf("firstControlPoint: %v\n", vectors[0].Sub(startVector))
-	fmt.Printf("secondControlPoint: %v\n", vectors[1].Sub(startVector))
-	fmt.Printf("thirdControlPoint: %v\n", vectors[2].Sub(startVector))
+	//fmt.Printf("firstControlPoint: %v\n", vectors[0].Sub(startVector))
+	//fmt.Printf("secondControlPoint: %v\n", vectors[1].Sub(startVector))
+	//fmt.Printf("thirdControlPoint: %v\n", vectors[2].Sub(startVector))
 	//fmt.Printf("forthControlPoint: %v\n", vectors[3].Sub(startVector))
 
 	// Vec
@@ -510,16 +500,16 @@ func GenerateHeadlandBezierCurve(previousPoint Point, start Point, end Point, in
 // CalculateThreeArcCenters calculates the centers of three arcs for a smooth headland turn
 // Returns the center points and radii for entry, main, and exit arcs
 func CalculateThreeArcCenters(start Vector, end Vector, direction int, headlandOffset float64) (Point, Point, Point, float64, float64, float64) {
-	fmt.Println("CalculateThreeArcCenters")
+	//fmt.Println("CalculateThreeArcCenters")
 
-	fmt.Printf("start: %v\n", start)
-	fmt.Printf("end: %v\n", end)
-	fmt.Printf("direction: %v\n", direction)
-	fmt.Printf("headlandOffset: %v\n", headlandOffset)
+	//fmt.Printf("start: %v\n", start)
+	//fmt.Printf("end: %v\n", end)
+	//fmt.Printf("direction: %v\n", direction)
+	//fmt.Printf("headlandOffset: %v\n", headlandOffset)
 
 	vector := end.Sub(start)
 
-	fmt.Printf("vector: %v\n", vector)
+	//fmt.Printf("vector: %v\n", vector)
 
 	midpoint := start.Middle(end)
 	//fmt.Printf("midpoint: %v\n", midpoint)
@@ -539,7 +529,7 @@ func CalculateThreeArcCenters(start Vector, end Vector, direction int, headlandO
 		perpVector = vector.Rotate(-math.Pi / 2)
 	}
 
-	fmt.Printf("perpVector: %v\n", perpVector)
+	//fmt.Printf("perpVector: %v\n", perpVector)
 
 	// push start and end points outwards by headland offset
 	//start = Point{X: start.X + perpVector.X*headlandOffset, Y: start.Y + perpVector.Y*headlandOffset}
@@ -585,12 +575,12 @@ func CalculateThreeArcCenters(start Vector, end Vector, direction int, headlandO
 		Y: end.Y + vector.Y*minorRadius,
 	}
 
-	fmt.Printf("entryCenter: %v\n", entryCenter)
-	fmt.Printf("mainCenter: %v\n", mainCenter)
-	fmt.Printf("exitCenter: %v\n", exitCenter)
-	fmt.Printf("minorRadius: %v\n", minorRadius)
-	fmt.Printf("mainRadius: %v\n", mainRadius)
-	fmt.Printf("angle: %v\n", angle*180/math.Pi)
+	//fmt.Printf("entryCenter: %v\n", entryCenter)
+	//fmt.Printf("mainCenter: %v\n", mainCenter)
+	//fmt.Printf("exitCenter: %v\n", exitCenter)
+	//fmt.Printf("minorRadius: %v\n", minorRadius)
+	//fmt.Printf("mainRadius: %v\n", mainRadius)
+	//fmt.Printf("angle: %v\n", angle*180/math.Pi)
 	return entryCenter, mainCenter, exitCenter, minorRadius, mainRadius, angle
 }
 
@@ -627,7 +617,7 @@ func DetermineSideOfABLine(abLine ABLine, point Point) int {
 // GeneratePath implements the PathPlanner interface for AB line planning
 func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, implement *implement.Implement) ([]Point, []Point, error) {
 
-	fmt.Printf("Generating path: Implement width: %.1f\n", implement.WorkingWidth)
+	//fmt.Printf("Generating path: Implement width: %.1f\n", implement.WorkingWidth)
 
 	if implement.WorkingWidth <= 0 {
 		return nil, nil, errors.New("implement width must be positive")
@@ -638,8 +628,8 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 	field.ABLine = *FindABLine(field.WorkingArea)
 
 	// Calculate field dimensions from boundary
-	minX, maxX, minY, maxY := getBoundingBox(field.WorkingArea)
-	fmt.Printf("minX: %v, maxX: %v, minY: %v, maxY: %v\n", minX, maxX, minY, maxY)
+	//minX, maxX, minY, maxY := getBoundingBox(field.WorkingArea)
+	//fmt.Printf("minX: %v, maxX: %v, minY: %v, maxY: %v\n", minX, maxX, minY, maxY)
 
 	//fmt.Println("fieldWidth: ", fieldWidth, "fieldLength: ", fieldLength)
 
@@ -715,7 +705,7 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 
 	// maximum length of a pass
 	numPasses := int(math.Ceil(maxPerpDistance / implement.WorkingWidth))
-	fmt.Printf("numPasses: %v\n", numPasses)
+	//fmt.Printf("numPasses: %v\n", numPasses)
 
 	const intervalDistance = 20.0 // Distance between points in meters
 
@@ -830,7 +820,7 @@ func RemoveDuplicatePoints(path []Point) []Point {
 			newPoints = append(newPoints, path[i])
 			//newPoints[len(newPoints)-1].End = path[i-1].End || path[i].End
 		} else {
-			fmt.Printf("duplicate point: %v %v\n", path[i], path[i-1])
+			//fmt.Printf("duplicate point: %v %v\n", path[i], path[i-1])
 			if path[i].End {
 				newPoints[len(newPoints)-1].End = true
 			}
@@ -1016,6 +1006,8 @@ func (s *SpiralPlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 	fullpath = RoundCorners(fullpath, implement.WorkingWidth)
 	fullpath = Subdivide(fullpath, implement.Length)
 
+	fullpath = ForwardOffsetPath(fullpath, implement.Length)
+
 	return fullpath, nil, nil
 }
 
@@ -1119,8 +1111,8 @@ func RoundCorners(path []Point, radius float64) []Point {
 		tanDist := radius * math.Tan(angle/2)
 
 		// Ensure tangent distance isn't too large for the segments
-		tanDist = math.Min(tanDist, v1Len/2)
-		tanDist = math.Min(tanDist, v2Len/2)
+		//tanDist = math.Min(tanDist, v1Len/2)
+		//tanDist = math.Min(tanDist, v2Len/2)
 
 		// Calculate tangent points
 		t1 := Point{
@@ -1165,17 +1157,22 @@ func RoundCorners(path []Point, radius float64) []Point {
 		startAngle := math.Atan2(t1.Y-center.Y, t1.X-center.X)
 		endAngle := math.Atan2(t2.Y-center.Y, t2.X-center.X)
 
+		//startangleDeg := startAngle * 180 / math.Pi
+		//endangleDeg := endAngle * 180 / math.Pi
+
+		//fmt.Println("startAngle", startangleDeg, "endAngle", endangleDeg)
+
 		// Ensure we go the short way around
 		if math.Abs(endAngle-startAngle) > math.Pi {
-			fmt.Println("angle", endAngle-startAngle)
-			endAngle = math.Pi*2 - endAngle
+			//fmt.Println("angle", endAngle-startAngle)
+			endAngle = endAngle - math.Pi*2
 		}
 
 		// Add the first tangent point
 		result = append(result, t1)
 
 		// Add arc points
-		numArcPoints := int(math.Max(3, math.Abs(endAngle-startAngle)*radius/5))
+		numArcPoints := int(math.Max(3, math.Abs(endAngle-startAngle)*radius))
 		for j := 1; j < numArcPoints; j++ {
 			t := float64(j) / float64(numArcPoints)
 			angle := startAngle + t*(math.Abs(endAngle-startAngle)*float64(direction))
@@ -1225,4 +1222,33 @@ func TrimPath(path []Point, trimlength float64) []Point {
 	trimmed := TrimLine(path[len(path)-2:], trimlength)
 
 	return append(path[:len(path)-2], trimmed...)
+}
+
+// generate a forward offset path whereby the path is offset by a fixed distance in the direction of travel
+func ForwardOffsetPath(path []Point, offset float64) []Point {
+
+	offsetPath := []Point{}
+
+	for i := 0; i < len(path)-1; i++ {
+
+		// get a vector from the current point to the next point
+		v1 := PointToVector(path[i])
+		v2 := PointToVector(path[i+1])
+
+		v2 = v2.Sub(v1)
+
+		v2 = v2.SetLength(offset)
+
+		v1 = v1.Add(v2)
+
+		// if values are NaN, skip this point
+		if math.IsNaN(v1.X) || math.IsNaN(v1.Y) {
+			continue
+		}
+
+		// add the offset vector to the current point
+		offsetPath = append(offsetPath, v1.ToPoint())
+	}
+
+	return offsetPath
 }

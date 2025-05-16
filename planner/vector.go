@@ -1,7 +1,6 @@
 package planner
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -117,7 +116,7 @@ func Direction(a, b, c Point) int {
 
 	angleDiff := angle2 - angle1
 
-	fmt.Println(angle1, angle2, angleDiff)
+	//fmt.Println(angle1, angle2, angleDiff)
 
 	if angleDiff < 0 {
 		return -1

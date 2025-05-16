@@ -779,6 +779,8 @@
                 else if (data.type === 'path') {
                     // Update AB line path
                     abPathPoints.length = 0;
+
+                    console.log("path", data)
                     
                     // Remove existing line segments
                     while (abPathGroup.children.length > 0) {
@@ -1688,6 +1690,8 @@
             } else {
                 steeringValue.textContent = `Right ${Math.abs(targetSteeringDegrees).toFixed(3)}°`;
             }
+
+            tractor.setSteeringAngle(targetSteeringDegrees);
             
             // Send control update to server
             sendTractorControls();
