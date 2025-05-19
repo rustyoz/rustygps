@@ -777,76 +777,54 @@
                     requestPathCalculation();
                 }
                 else if (data.type === 'path') {
-                    // Update AB line path
-                    abPathPoints.length = 0;
-
-                    console.log("path", data)
+                    // Clear existing paths
+                    clearAllPaths();
                     
-                    // Remove existing line segments
-                    while (abPathGroup.children.length > 0) {
-                        const line = abPathGroup.children[0];
-                        abPathGroup.remove(line);
-                        line.geometry.dispose();
-                        line.material.dispose();
-                    }
+                    console.log("path", data);
                     
-                    // Store points with their full data including color
-                    const pointsWithData = data.points;
-                    
-                    // Add points to the array for other uses
-                    pointsWithData.forEach(point => {
-                        abPathPoints.push(new THREE.Vector3(point.X, point.Y, 0.1));
+                    // Process each named path
+                    data.paths.forEach(namedPath => {
+                        const group = createOrUpdatePathGroup(namedPath.name, namedPath.color);
+                        
+                        // Create colored line segments between consecutive points
+                        for (let i = 1; i < namedPath.points.length; i++) {
+                            const previousPoint = namedPath.points[i-1];
+                            const currentPoint = namedPath.points[i];
+                            
+                            const lineColor = new THREE.Color(namedPath.color);
+                            
+                            const lineMaterial = new THREE.LineBasicMaterial({
+                                color: lineColor,
+                                linewidth: 2,
+                                side: THREE.DoubleSide
+                            });
+                            
+                            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                                new THREE.Vector3(previousPoint.X, previousPoint.Y, 0.1),
+                                new THREE.Vector3(currentPoint.X, currentPoint.Y, 0.1)
+                            ]);
+                            
+                            const line = new THREE.Line(lineGeometry, lineMaterial);
+                            line.renderOrder = 1;
+                            line.material.depthTest = false;
+                            line.frustumCulled = false;
+                            
+                            group.add(line);
+                        }
+                        
+                        // Update markers if this is the main path and has points
+                        if (namedPath.name === 'main' && namedPath.points.length >= 2) {
+                            // Position start marker at first point
+                            startMarker.position.set(namedPath.points[0].X, namedPath.points[0].Y, 0.1);
+                            
+                            // Position end marker at last point
+                            endMarker.position.set(
+                                namedPath.points[namedPath.points.length - 1].X,
+                                namedPath.points[namedPath.points.length - 1].Y,
+                                0.1
+                            );
+                        }
                     });
-                    
-                    // Create colored line segments between consecutive points
-                    for (let i = 1; i < pointsWithData.length; i++) {
-                        const previousPoint = pointsWithData[i-1];
-                        const currentPoint = pointsWithData[i];
-                        
-                        // Use specified color if available, otherwise use default purple
-                        const lineColor = currentPoint.Color ? 
-                            new THREE.Color(currentPoint.Color) : 
-                            new THREE.Color(0x800080); // Default purple
-                        
-                        const lineMaterial = new THREE.LineBasicMaterial({
-                            color: lineColor,
-                            linewidth: 2,
-                            side: THREE.DoubleSide
-                        });
-                        
-                        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-                            new THREE.Vector3(previousPoint.X, previousPoint.Y, 0.1),
-                            new THREE.Vector3(currentPoint.X, currentPoint.Y, 0.1)
-                        ]);
-                        
-                        const line = new THREE.Line(lineGeometry, lineMaterial);
-                        line.renderOrder = 1;
-                        line.material.depthTest = false;
-                        line.frustumCulled = false;
-                        
-                        abPathGroup.add(line);
-                    }
-                    
-                    // Update markers if there are points
-                    if (abPathPoints.length >= 2) {
-                        // Position start marker at first point
-                        startMarker.position.set(abPathPoints[0].x, abPathPoints[0].y, 0.1);
-                        
-                        // Position end marker at last point
-                        endMarker.position.set(
-                            abPathPoints[abPathPoints.length - 1].x,
-                            abPathPoints[abPathPoints.length - 1].y,
-                            0.1
-                        );
-                    }
-
-                    if (data.controlPoints) {
-                        controlPathPoints.length = 0;
-                        data.controlPoints.forEach(point => {
-                            controlPathPoints.push(new THREE.Vector3(point.X, point.Y, 0.1));
-                        });
-                        controlPathGeometry.setFromPoints(controlPathPoints);
-                    }
                 } else if (data.type === 'guidance') {
                     // Update guidance arrow direction
                     if (tractor) {
@@ -878,11 +856,13 @@
                         // Clear path arrays
                         tractorPathPoints.length = 0;
                         implementPathPoints.length = 0;
-                        abPathPoints.length = 0;
                         
                         // Reset path geometries
                         tractorPathGeometry.setFromPoints(tractorPathPoints);
                         implementPathGeometry.setFromPoints(implementPathPoints);
+                        
+                        // Clear all path groups
+                        clearAllPaths();
                         
                         // Send reset command to server
                         ws.send(JSON.stringify({type: 'reset'}));
@@ -1951,6 +1931,32 @@
                 document.getElementById('settings-deadzone').value = document.getElementById('deadzoneControl').value;
             }
         });
+
+        // Create a map to store path groups
+        const pathGroups = new Map();
+
+        // Function to create or update a path group
+        function createOrUpdatePathGroup(name, color) {
+            if (!pathGroups.has(name)) {
+                const group = new THREE.Group();
+                group.name = name;
+                scene.add(group);
+                pathGroups.set(name, group);
+            }
+            return pathGroups.get(name);
+        }
+
+        // Function to clear all paths
+        function clearAllPaths() {
+            pathGroups.forEach(group => {
+                while (group.children.length > 0) {
+                    const line = group.children[0];
+                    group.remove(line);
+                    line.geometry.dispose();
+                    line.material.dispose();
+                }
+            });
+        }
     </script>
 </body>
 </html>

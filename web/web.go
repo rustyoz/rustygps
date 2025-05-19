@@ -43,19 +43,27 @@ var theField planner.Field
 var thePath []planner.Point
 var theGuidance *guidance.Guidance
 
+// NamedPath represents a path with a name and color
+type NamedPath struct {
+	Name  string          `json:"name"`
+	Color string          `json:"color"`
+	Path  []planner.Point `json:"points"`
+}
+
 func init() {
-	// Create a rectangular field 400m x 800m
+	// Create a pentragram field 400m x 800m
 	boundary := []planner.Point{
 		{X: -10, Y: -10},
 		{X: -10, Y: 200},
-		{X: 200, Y: 200},
+		{X: 200, Y: 400},
+		{X: 400, Y: 200},
 		{X: 200, Y: -10},
 	}
 
 	//boundary = planner.RotateBoundary(boundary, math.Pi/2)
 
 	theField = planner.NewField(boundary)
-	thePlanner = planner.NewSpiralPlanner()
+	thePlanner = planner.NewABLinePlanner()
 	theGuidance = guidance.NewGuidance(&thePath)
 }
 
@@ -121,7 +129,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "calculatePath":
-
 			// Update config from message if provided
 			if cfg, ok := message["config"].(map[string]interface{}); ok {
 				if width, ok := cfg["implementWidth"].(float64); ok {
@@ -136,18 +143,29 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
+			// Create named paths array
+			namedPaths := []NamedPath{
+				{
+					Name:  "main",
+					Color: "#800080", // Default purple
+					Path:  path,
+				},
+				{
+					Name:  "control",
+					Color: "#ff0000", // Red
+					Path:  controlPath,
+				},
+			}
+
 			response := map[string]interface{}{
-				"type":          "path",
-				"points":        path,
-				"controlPoints": controlPath,
+				"type":  "path",
+				"paths": namedPaths,
 			}
 
 			data, err := json.Marshal(response)
 			if err != nil {
 				continue
 			}
-			fmt.Println("sending path to client")
-			fmt.Println(string(data))
 			client.mu.Lock()
 			err = client.conn.WriteMessage(websocket.TextMessage, data)
 			client.mu.Unlock()
@@ -193,11 +211,24 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				panic("path not updated")
 			}
 
+			// Create named paths array
+			namedPaths := []NamedPath{
+				{
+					Name:  "main",
+					Color: "#800080", // Default purple
+					Path:  path,
+				},
+				{
+					Name:  "control",
+					Color: "#ff0000", // Red
+					Path:  controlPath,
+				},
+			}
+
 			// Send updated path to client
 			response := map[string]interface{}{
-				"type":          "path",
-				"points":        path,
-				"controlPoints": controlPath,
+				"type":  "path",
+				"paths": namedPaths,
 			}
 			data, err := json.Marshal(response)
 			if err != nil {

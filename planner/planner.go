@@ -2,6 +2,7 @@ package planner
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/rustyoz/rustygps/implement"
@@ -109,7 +110,7 @@ func FindABLine(boundary []Point) *ABLine {
 		}
 	}
 
-	//fmt.Printf("longestLine: %v\n", longestLine)
+	fmt.Printf("longestLine: %v\n", longestLine)
 
 	return &longestLine
 }
@@ -623,9 +624,9 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 		return nil, nil, errors.New("implement width must be positive")
 	}
 
-	field.WorkingArea = GenerateInnerBoundary(field.Boundary, implement.WorkingWidth*2.75)
+	//field.WorkingArea = GenerateInnerBoundary(field.Boundary, implement.WorkingWidth*2.75)
 
-	field.ABLine = *FindABLine(field.WorkingArea)
+	field.ABLine = *FindABLine(field.Boundary)
 
 	// Calculate field dimensions from boundary
 	//minX, maxX, minY, maxY := getBoundingBox(field.WorkingArea)
@@ -688,16 +689,16 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 	// find the point furthest from the ab line in the direction of perpX and perpY
 	maxPerpDistance := 0.0
 	for _, p := range field.Boundary {
-		distance := math.Abs(p.X*perpX + p.Y*perpY)
+		distance := math.Abs((p.X-field.ABLine.PointA.X)*perpX + (p.Y-field.ABLine.PointA.Y)*perpY)
 		if distance > maxPerpDistance {
 			maxPerpDistance = distance
 		}
 	}
 
-	// find the point furthest from the ab line start point in the direction of dx and dy
+	// find the point furthest from the ab line start point in the direction of dx and dy from Point A
 	maxDistance := 0.0
 	for _, p := range field.Boundary {
-		distance := math.Abs(p.X*dx + p.Y*dy)
+		distance := math.Abs((p.X-field.ABLine.PointA.X)*dx + (p.Y-field.ABLine.PointA.Y)*dy)
 		if distance > maxDistance {
 			maxDistance = distance
 		}
@@ -753,14 +754,14 @@ func (p *ABLinePlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 
 	}
 
-	path = ClipPath(path, field.WorkingArea)
+	//path = ClipPath(path, field.WorkingArea)
 
-	pathHeadlands, controlPoints, err := GenerateHeadlandPath(path, field, tractor, implement)
-	if err != nil {
-		return path, nil, err
-	}
+	//pathHeadlands, controlPoints, err := GenerateHeadlandPath(path, field, tractor, implement)
+	//if err != nil {
+	//	return path, nil, err
+	//}
 
-	return pathHeadlands, controlPoints, nil
+	return path, nil, nil
 }
 
 func ClipPath(path []Point, boundary []Point) []Point {
@@ -1003,12 +1004,12 @@ func (s *SpiralPlanner) GeneratePath(field *Field, tractor *tractor.Tractor, imp
 		}
 	}
 
-	fullpath = RoundCorners(fullpath, implement.WorkingWidth)
-	fullpath = Subdivide(fullpath, implement.Length)
+	controlpath := RoundCorners(fullpath, implement.WorkingWidth)
+	fullpath = Subdivide(controlpath, implement.Length)
 
 	fullpath = ForwardOffsetPath(fullpath, implement.Length)
 
-	return fullpath, nil, nil
+	return fullpath, controlpath, nil
 }
 
 // subdivde a path givin as points into more points at a fixed interval
@@ -1229,25 +1230,25 @@ func ForwardOffsetPath(path []Point, offset float64) []Point {
 
 	offsetPath := []Point{}
 
-	for i := 0; i < len(path)-1; i++ {
+	for i := 1; i < len(path)-1; i++ {
 
 		// get a vector from the current point to the next point
-		v1 := PointToVector(path[i])
-		v2 := PointToVector(path[i+1])
+		v1 := PointToVector(path[i-1])
+		v2 := PointToVector(path[i])
 
 		v2 = v2.Sub(v1)
 
 		v2 = v2.SetLength(offset)
 
-		v1 = v1.Add(v2)
+		np := PointToVector(path[i]).Add(v2)
 
 		// if values are NaN, skip this point
-		if math.IsNaN(v1.X) || math.IsNaN(v1.Y) {
+		if math.IsNaN(np.X) || math.IsNaN(np.Y) {
 			continue
 		}
 
 		// add the offset vector to the current point
-		offsetPath = append(offsetPath, v1.ToPoint())
+		offsetPath = append(offsetPath, np.ToPoint())
 	}
 
 	return offsetPath
